@@ -134,6 +134,33 @@
     transform: scale(0.98);
 }
 
+/* Resume Button */
+.resumeButton {
+    background: rgba(48, 209, 88, 0.15);
+    border: 1px solid rgba(48, 209, 88, 0.3);
+    color: #30D158;
+    padding: 6px 14px;
+    border-radius: 99px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.resumeButton:hover {
+    background: rgba(48, 209, 88, 0.25);
+    border-color: rgba(48, 209, 88, 0.5);
+    transform: scale(1.02);
+}
+
+.resumeButton:active {
+    transform: scale(0.98);
+}
+
 /* Mobile responsive */
 @media (max-width: 480px) {
     .hudPill {

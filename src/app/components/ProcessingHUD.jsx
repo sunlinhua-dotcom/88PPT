@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './ProcessingHUD.module.css';
 
-export default function ProcessingHUD({ current, total, progress, estimatedTime, onStop, isProcessing }) {
+export default function ProcessingHUD({ current, total, progress, estimatedTime, onStop, onResume, isProcessing, isStopped }) {
     if (total === 0) return null;
 
     const isComplete = current >= total && !isProcessing;
@@ -33,14 +33,31 @@ export default function ProcessingHUD({ current, total, progress, estimatedTime,
                 </div>
 
                 {/* Stop Button */}
-                {!isComplete && isProcessing && onStop && (
-                    <button
-                        className={styles.stopButton}
-                        onClick={onStop}
-                        title="停止处理"
-                    >
-                        ⏹️ 停止
-                    </button>
+                {/* Action Buttons */}
+                {!isComplete && (
+                    <>
+                        {isStopped ? (
+                            onResume && (
+                                <button
+                                    className={styles.resumeButton}
+                                    onClick={onResume}
+                                    title="继续处理"
+                                >
+                                    ▶️ 继续
+                                </button>
+                            )
+                        ) : (
+                            isProcessing && onStop && (
+                                <button
+                                    className={styles.stopButton}
+                                    onClick={onStop}
+                                    title="停止处理"
+                                >
+                                    ⏹️ 停止
+                                </button>
+                            )
+                        )}
+                    </>
                 )}
             </div>
 

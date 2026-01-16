@@ -34,6 +34,107 @@ export default function RedrawPage() {
         setIsStopped(true);
     };
 
+    // Process pages function (reusable for initial and resume)
+    const processPages = async (startFromBeginning = true) => {
+        shouldStopRef.current = false;
+        setIsStopped(false);
+        setIsProcessing(true);
+        setError(null);
+
+        if (startFromBeginning) {
+            setGeneratedImages({});
+        }
+
+        let failCount = 0;
+        let skippedPages = [];
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY = 1000;
+
+        for (let i = 0; i < pdfData.pages.length; i++) {
+            // Check if user requested stop
+            if (shouldStopRef.current) {
+                break;
+            }
+
+            const page = pdfData.pages[i];
+
+            // Skip already generated pages
+            if (generatedImages[page.pageNumber]) {
+                continue;
+            }
+
+            setCurrentProcessingPage(page.pageNumber);
+            let success = false;
+            let attempt = 0;
+
+            while (!success && attempt < MAX_RETRIES && !shouldStopRef.current) {
+                try {
+                    attempt++;
+                    const response = await fetch("/api/generate-image", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            pageImage: page.imageBase64,
+                            pageContent: page.textContent,
+                            brandInfo: brandInfo,
+                            pageNumber: page.pageNumber,
+                            aspectRatio: aspectRatio,
+                        }),
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success && data.generatedImage) {
+                        setGeneratedImages((prev) => ({
+                            ...prev,
+                            [page.pageNumber]: data.generatedImage,
+                        }));
+                        success = true;
+                    } else {
+                        console.error(`Page ${page.pageNumber} attempt ${attempt} failed:`, data.error);
+                        if (attempt < MAX_RETRIES) {
+                            await new Promise(r => setTimeout(r, RETRY_DELAY * attempt));
+                        } else {
+                            // Mark as failed but continue to next page
+                            skippedPages.push(page.pageNumber);
+                            failCount++;
+                            console.warn(`Page ${page.pageNumber} skipped after ${MAX_RETRIES} attempts, continuing...`);
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Page ${page.pageNumber} attempt ${attempt} network error:`, err);
+                    if (attempt < MAX_RETRIES) {
+                        await new Promise(r => setTimeout(r, RETRY_DELAY * attempt));
+                    } else {
+                        skippedPages.push(page.pageNumber);
+                        failCount++;
+                        console.warn(`Page ${page.pageNumber} skipped due to network error, continuing...`);
+                    }
+                }
+            }
+
+            // Update progress
+            const completedCount = Object.keys(generatedImages).length + (success ? 1 : 0);
+            setProcessingProgress(Math.round(((i + 1) / pdfData.pages.length) * 100));
+        }
+
+        setIsProcessing(false);
+        setCurrentProcessingPage(0);
+
+        // Set appropriate message
+        if (shouldStopRef.current) {
+            const remaining = pdfData.pages.length - Object.keys(generatedImages).length;
+            setError(`已暂停。剩余 ${remaining} 页未处理，点击"继续"按钮可继续生成。`);
+        } else if (failCount > 0) {
+            setError(`处理完成。${failCount} 页生成失败（第 ${skippedPages.join(', ')} 页），可点击单张重绘按钮重试。`);
+        }
+    };
+
+    // Resume processing handler
+    const handleResumeProcessing = () => {
+        processPages(false); // false = don't clear existing images
+    };
+
     // Redirect if no data
     useEffect(() => {
         if (!pdfData || !brandInfo) {
@@ -44,94 +145,8 @@ export default function RedrawPage() {
     // Start processing automatically
     useEffect(() => {
         if (!pdfData || !brandInfo || processedRef.current) return;
-
-        const startProcessing = async () => {
-            processedRef.current = true;
-            shouldStopRef.current = false;
-            setIsStopped(false);
-            setIsProcessing(true);
-            setError(null);
-            setGeneratedImages({});
-
-            let failCount = 0;
-
-            const MAX_RETRIES = 3;
-            const RETRY_DELAY = 1000;
-
-            for (let i = 0; i < totalPages; i++) {
-                // Check if user requested stop
-                if (shouldStopRef.current) {
-                    setError(`已停止处理。已完成 ${generatedCount} / ${totalPages} 页。`);
-                    break;
-                }
-
-                const page = pdfData.pages[i];
-
-                if (generatedImages[page.pageNumber]) {
-                    continue;
-                }
-
-                setCurrentProcessingPage(page.pageNumber);
-                let success = false;
-                let attempt = 0;
-
-                while (!success && attempt < MAX_RETRIES && !shouldStopRef.current) {
-                    try {
-                        attempt++;
-                        const response = await fetch("/api/generate-image", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                pageImage: page.imageBase64,
-                                pageContent: page.textContent,
-                                brandInfo: brandInfo,
-                                pageNumber: page.pageNumber,
-                                aspectRatio: aspectRatio,
-                            }),
-                        });
-
-                        const data = await response.json();
-
-                        if (data.success && data.generatedImage) {
-                            setGeneratedImages((prev) => ({
-                                ...prev,
-                                [page.pageNumber]: data.generatedImage,
-                            }));
-                            success = true;
-                        } else {
-                            console.error(`Page ${page.pageNumber} attempt ${attempt} failed:`, data.error);
-                            if (attempt < MAX_RETRIES) {
-                                await new Promise(r => setTimeout(r, RETRY_DELAY * attempt));
-                            } else {
-                                setGeneratedImages((prev) => ({
-                                    ...prev,
-                                    [page.pageNumber]: null,
-                                }));
-                                failCount++;
-                            }
-                        }
-                    } catch (err) {
-                        console.error(`Page ${page.pageNumber} attempt ${attempt} network error:`, err);
-                        if (attempt < MAX_RETRIES) {
-                            await new Promise(r => setTimeout(r, RETRY_DELAY * attempt));
-                        } else {
-                            failCount++;
-                        }
-                    }
-                }
-
-                setProcessingProgress(Math.round(((i + 1) / totalPages) * 100));
-            }
-
-            setIsProcessing(false);
-            setCurrentProcessingPage(0);
-
-            if (!shouldStopRef.current && failCount > 0) {
-                setError(`处理完成，${failCount} 页生成失败（已保留原图）。`);
-            }
-        };
-
-        startProcessing();
+        processedRef.current = true;
+        processPages(true);
     }, [pdfData, brandInfo, aspectRatio]);
 
     // Single page redraw handler
@@ -142,11 +157,11 @@ export default function RedrawPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     pageImage: originalImage,
-                    pageContent: additionalPrompt || "", // Use additional prompt as content hint
+                    pageContent: additionalPrompt || "",
                     brandInfo: brandInfo,
                     pageNumber: pageNumber,
                     aspectRatio: aspectRatio,
-                    additionalInstructions: additionalPrompt, // Pass to API
+                    additionalInstructions: additionalPrompt,
                 }),
             });
 
@@ -176,7 +191,9 @@ export default function RedrawPage() {
                 progress={processingProgress}
                 estimatedTime={estimatedTime}
                 onStop={handleStopProcessing}
+                onResume={handleResumeProcessing}
                 isProcessing={isProcessing}
+                isStopped={isStopped}
             />
 
             {/* Header with Back Button */}
