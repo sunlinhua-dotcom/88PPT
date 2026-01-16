@@ -32,7 +32,19 @@ export default function ImageGallery({
         return new Blob([byteArray], { type: mimeType });
     };
 
-    const handleDownload = (imageBase64, pageNumber) => {
+    // Detect iOS device
+    const isIOS = () => {
+        if (typeof navigator === 'undefined') return false;
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    };
+
+    // Check if Web Share API with files is supported
+    const canShareFiles = () => {
+        return navigator.share && navigator.canShare;
+    };
+
+    const handleDownload = async (imageBase64, pageNumber) => {
         if (!imageBase64 || !imageBase64.startsWith('data:image')) {
             alert('图片数据无效');
             return;
@@ -44,6 +56,29 @@ export default function ImageGallery({
             const extension = mimeType === 'image/png' ? 'png' : 'jpg';
             const blob = base64ToBlob(imageBase64, mimeType);
             const filename = `slide_${String(pageNumber).padStart(3, "0")}.${extension}`;
+
+            // iOS: Use Web Share API to save to Photos
+            if (isIOS() && canShareFiles()) {
+                const file = new File([blob], filename, { type: mimeType });
+
+                if (navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: filename,
+                            text: 'PPT-AI 生成的图片'
+                        });
+                        return; // Success via share
+                    } catch (shareErr) {
+                        // User cancelled or share failed, fall through to saveAs
+                        if (shareErr.name !== 'AbortError') {
+                            console.warn('Share failed, falling back:', shareErr);
+                        }
+                    }
+                }
+            }
+
+            // Fallback: Use FileSaver for other platforms
             saveAs(blob, filename);
         } catch (err) {
             console.error('Download error:', err);
@@ -51,7 +86,7 @@ export default function ImageGallery({
         }
     };
 
-    const handleDownloadAll = () => {
+    const handleDownloadAll = async () => {
         const validImages = Object.entries(generatedImages).filter(
             ([, imageBase64]) => imageBase64 && imageBase64.startsWith('data:image')
         );
@@ -61,6 +96,36 @@ export default function ImageGallery({
             return;
         }
 
+        // iOS: Try to share all files at once
+        if (isIOS() && canShareFiles()) {
+            try {
+                const files = validImages.map(([pageNum, imageBase64]) => {
+                    const mimeMatch = imageBase64.match(/^data:(image\/\w+);base64,/);
+                    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                    const extension = mimeType === 'image/png' ? 'png' : 'jpg';
+                    const blob = base64ToBlob(imageBase64, mimeType);
+                    const filename = `slide_${String(pageNum).padStart(3, "0")}.${extension}`;
+                    return new File([blob], filename, { type: mimeType });
+                });
+
+                if (navigator.canShare({ files })) {
+                    await navigator.share({
+                        files,
+                        title: 'PPT-AI 生成的图片',
+                        text: `共 ${files.length} 张图片`
+                    });
+                    return; // Success
+                }
+            } catch (shareErr) {
+                if (shareErr.name !== 'AbortError') {
+                    console.warn('Batch share failed, falling back to sequential:', shareErr);
+                } else {
+                    return; // User cancelled
+                }
+            }
+        }
+
+        // Fallback: Sequential download
         validImages.forEach(([pageNum, imageBase64], index) => {
             setTimeout(() => {
                 try {
