@@ -19,6 +19,7 @@ export default function BrandInput({ onBrandLoaded, disabled }) {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [styleProfile, setStyleProfile] = useState(null);
     const [analyzeTimer, setAnalyzeTimer] = useState(0);
+    const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef(null);
 
     // Timer for search
@@ -171,6 +172,44 @@ export default function BrandInput({ onBrandLoaded, disabled }) {
         }
     };
 
+    // Drag and drop handlers
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length === 0) return;
+
+        // Filter valid files
+        const validFiles = files.filter(f =>
+            f.type === 'application/pdf' || f.type.startsWith('image/')
+        );
+
+        if (validFiles.length === 0) {
+            setError("请上传 PDF 或图片文件");
+            return;
+        }
+
+        setError(null);
+        setUploadedFiles(validFiles);
+
+        // Auto-analyze after upload
+        await analyzeStyleReference(validFiles);
+    };
+
     return (
         <div className={styles.container}>
             {/* Tab Switcher */}
@@ -288,12 +327,15 @@ export default function BrandInput({ onBrandLoaded, disabled }) {
 
                         {uploadedFiles.length === 0 ? (
                             <div
-                                className={styles.uploadDropzone}
+                                className={`${styles.uploadDropzone} ${isDragging ? styles.dropzoneActive : ''}`}
                                 onClick={triggerFileSelect}
+                                onDragOver={handleDragOver}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
                             >
-                                <div className={styles.uploadIcon}>📄</div>
+                                <div className={styles.uploadIcon}>{isDragging ? '📥' : '📄'}</div>
                                 <div className={styles.uploadText}>
-                                    点击上传或拖拽文件到此处
+                                    {isDragging ? '松开鼠标上传文件' : '点击上传或拖拽文件到此处'}
                                 </div>
                                 <div className={styles.uploadFormats}>
                                     支持 PDF、JPG、PNG 格式
