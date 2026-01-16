@@ -51,6 +51,7 @@ export async function POST(request) {
                 colorPalette: ["#1a1a2e", "#16213e", "#0f3460", "#e94560"],
             },
             pageNumber,
+            aspectRatio: aspectRatio || "16:9", // Pass aspect ratio to generator
         });
 
         return NextResponse.json({

@@ -12,58 +12,96 @@ export default function ImageGallery({
     currentProcessingPage
 }) {
     const handleDownload = (imageBase64, pageNumber) => {
+        if (!imageBase64 || !imageBase64.startsWith('data:image')) {
+            alert('图片数据无效');
+            return;
+        }
+
         const img = new Image();
-        img.src = imageBase64;
+        img.crossOrigin = "anonymous";
+
         img.onload = () => {
             const canvas = document.createElement("canvas");
             canvas.width = img.width;
             canvas.height = img.height;
             const ctx = canvas.getContext("2d");
-            // Fill white background for transparency
             ctx.fillStyle = "#FFFFFF";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0);
 
-            // Convert to true JPEG
-            const jpgDataUrl = canvas.toDataURL("image/jpeg", 0.95);
-
-            const link = document.createElement("a");
-            link.href = jpgDataUrl;
-            link.download = `slide_${String(pageNumber).padStart(3, "0")}.jpg`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        };
-    };
-
-    const handleDownloadAll = () => {
-        // Sequentially download each generated image using Canvas to ensure format/quality
-        Object.entries(generatedImages).forEach(([pageNum, imageBase64], index) => {
-            setTimeout(() => {
-                const img = new Image();
-                img.src = imageBase64;
-                img.crossOrigin = "anonymous";
-                img.onload = () => {
-                    const canvas = document.createElement("canvas");
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext("2d");
-                    ctx.fillStyle = "#FFFFFF";
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0);
-
-                    // Convert to high-quality JPEG
-                    const jpgDataUrl = canvas.toDataURL("image/jpeg", 0.95);
-                    const filename = `slide_${String(pageNum).padStart(3, "0")}.jpg`;
-
+            // Use Blob for reliable download with correct filename
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    const url = URL.createObjectURL(blob);
                     const link = document.createElement("a");
-                    link.href = jpgDataUrl;
-                    link.download = filename;
+                    link.href = url;
+                    link.download = `slide_${String(pageNumber).padStart(3, "0")}.jpg`;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
-                };
-            }, index * 800); // 800ms spacing to prevent throttling
+                    URL.revokeObjectURL(url);
+                }
+            }, "image/jpeg", 0.95);
+        };
+
+        img.onerror = () => {
+            alert('图片加载失败');
+        };
+
+        img.src = imageBase64;
+    };
+
+    const handleDownloadAll = () => {
+        // Filter out null/invalid entries first
+        const validImages = Object.entries(generatedImages).filter(
+            ([, imageBase64]) => imageBase64 && imageBase64.startsWith('data:image')
+        );
+
+        if (validImages.length === 0) {
+            alert('没有可下载的图片');
+            return;
+        }
+
+        // Sequentially download each valid image
+        validImages.forEach(([pageNum, imageBase64], index) => {
+            setTimeout(() => {
+                try {
+                    const img = new Image();
+                    img.crossOrigin = "anonymous";
+
+                    img.onload = () => {
+                        const canvas = document.createElement("canvas");
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext("2d");
+                        ctx.fillStyle = "#FFFFFF";
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(img, 0, 0);
+
+                        // Use Blob for more reliable download
+                        canvas.toBlob((blob) => {
+                            if (blob) {
+                                const url = URL.createObjectURL(blob);
+                                const link = document.createElement("a");
+                                link.href = url;
+                                link.download = `slide_${String(pageNum).padStart(3, "0")}.jpg`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                URL.revokeObjectURL(url); // Clean up
+                            }
+                        }, "image/jpeg", 0.95);
+                    };
+
+                    img.onerror = () => {
+                        console.error(`Failed to load image for page ${pageNum}`);
+                    };
+
+                    img.src = imageBase64;
+                } catch (err) {
+                    console.error(`Download error for page ${pageNum}:`, err);
+                }
+            }, index * 1000); // 1s spacing for reliability
         });
     };
 
