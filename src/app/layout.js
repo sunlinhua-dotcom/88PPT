@@ -9,7 +9,7 @@ export const metadata = {
     title: "PPT-AI | 智能演示文稿重绘系统",
     description: "使用 AI 将您的 PPT 转换为大师级设计作品",
     images: [{
-      url: '/logo.png', // Uses the newly generated logo for sharing
+      url: '/logo_red.png', // Uses the newly generated red logo for sharing
       width: 1024,
       height: 1024,
       alt: 'PPT AI Pro Logo',
@@ -17,8 +17,8 @@ export const metadata = {
     type: 'website',
   },
   icons: {
-    icon: '/logo.png',
-    apple: '/logo.png', // For iOS home screen
+    icon: '/logo_red.png',
+    apple: '/logo_red.png', // For iOS home screen
   },
 };
 

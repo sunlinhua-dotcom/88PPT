@@ -111,10 +111,10 @@ export default function Home() {
         <div className="logo">
           {/* Replace SVG with Image Logo for consistent branding */}
           <div style={{
-            width: '32px', height: '32px', overflow: 'hidden', borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(41, 151, 255, 0.3)', marginRight: '10px'
+            width: '48px', height: '48px', overflow: 'hidden', borderRadius: '10px',
+            boxShadow: '0 4px 12px rgba(255, 59, 48, 0.3)', marginRight: '12px'
           }}>
-            <img src="/logo.png" alt="PPT AI Pro" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src="/logo_red.png" alt="PPT AI Pro" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <span className="logo-text">PPT AI Pro</span>
         </div>
