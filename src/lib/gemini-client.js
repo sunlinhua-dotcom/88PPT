@@ -93,15 +93,24 @@ export async function generateMasterDesign({
     };
     const resolutionInstruction = ratioInstructions[aspectRatio] || "1920x1080";
 
+    // ULTRA-STRICT PROMPT CONSTRUCTION (PREPENDING INSTRUCTION)
+    // Multimodal models often biases towards the input image aspect ratio.
+    // We must forcefully override this BEFORE the image is seen in the context logic.
+    const strictInstruction = `
+### ⚠️ CRITICAL OVERRIDE: TARGET FORMAT ${aspectRatio} ⚠️
+- **IGNORE INPUT IMAGE RATIO**. The input image is just for content reference.
+- **OUTPUT MUST BE**: ${aspectRatio} (${resolutionInstruction}).
+- **FORCE VERTICAL/PORTRAIT** if selecting 9:16 or 3:4.
+- **FORCE HORIZONTAL/LANDSCAPE** if selecting 16:9 or 4:3.
+- Do NOT output a square image.
+    `.trim();
+
     // 构建提示词
-    let prompt = MASTER_DESIGN_PROMPT
+    let prompt = strictInstruction + "\n\n" + MASTER_DESIGN_PROMPT
       .replace("{brandTonality}", brandInfo.tonality || "Professional, Modern, Premium")
       .replace("{brandColors}", JSON.stringify(brandInfo.colorPalette || ["#FFFFFF", "#000000"]))
       .replace("{pageContent}", pageContent || "(Extract from image)")
       .replace("1920x1080", resolutionInstruction); // Dynamic Resolution
-
-    // STRICT ASPECT RATIO ENFORCEMENT
-    prompt += `\n\n### CRITICAL OUTPUT REQUIREMENT:\n- **ASPECT RATIO**: ${aspectRatio}\n- **RESOLUTION**: ${resolutionInstruction}\n- **DO NOT CROP**: The output MUST maintain the ${aspectRatio} ratio. Do NOT produce a square image.`;
 
     // 准备图像数据
     const imageParts = [];

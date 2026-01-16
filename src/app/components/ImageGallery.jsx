@@ -36,40 +36,26 @@ export default function ImageGallery({
         };
     };
 
-    const handleDownloadAll = async () => {
-        const zip = new JSZip();
-        // Create a folder for the slides
-        const folder = zip.folder("ppt-ai-slides");
+    const handleDownloadAll = () => {
+        // Sequentially download each generated image
+        Object.entries(generatedImages).forEach(([pageNum, imageBase64], index) => {
+            setTimeout(() => {
+                const link = document.createElement("a");
+                link.href = imageBase64; // Direct Base64 download (likely PNG or converted JPEG from API)
+                // Note: The API usually returns JPEG data URL, or we can assume it.
+                // If it's raw base64 from Gemini, it has a mime type prefix usually.
+                // Let's assume standard behavior.
 
-        const promises = Object.entries(generatedImages).map(async ([pageNum, imageBase64]) => {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.src = imageBase64;
-                img.crossOrigin = "anonymous"; // Handle potentil CORS if images are external
-                img.onload = () => {
-                    const canvas = document.createElement("canvas");
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext("2d");
-                    ctx.fillStyle = "#FFFFFF";
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0);
+                // Construct filename
+                const extension = imageBase64.substring("data:image/".length, imageBase64.indexOf(";base64"));
+                const filename = `slide_${String(pageNum).padStart(3, "0")}.${extension === 'jpeg' ? 'jpg' : extension}`;
 
-                    // Get blob data
-                    canvas.toBlob((blob) => {
-                        const filename = `slide_${String(pageNum).padStart(3, "0")}.jpg`;
-                        folder.file(filename, blob);
-                        resolve();
-                    }, "image/jpeg", 0.95);
-                };
-            });
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }, index * 500); // 500ms delay to prevent browser blocking
         });
-
-        if (promises.length === 0) return;
-
-        await Promise.all(promises);
-        const content = await zip.generateAsync({ type: "blob" });
-        saveAs(content, "ppt-ai-pro-export.zip");
     };
 
     const generatedCount = Object.keys(generatedImages).length;
@@ -151,7 +137,7 @@ export default function ImageGallery({
                         className={styles.downloadAllButton}
                         onClick={handleDownloadAll}
                     >
-                        📦 打包下载 ZIP ({generatedCount})
+                        ⬇️ 一键下载所有图片 ({generatedCount})
                     </button>
                 </div>
             )}
