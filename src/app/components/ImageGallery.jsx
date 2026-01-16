@@ -272,8 +272,15 @@ export default function ImageGallery({
                 <div className={styles.modalOverlay} onClick={closeRedrawModal}>
                     <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
-                            <h3>🔄 重绘第 {redrawModal.pageNum} 页</h3>
-                            <button className={styles.modalClose} onClick={closeRedrawModal}>✕</button>
+                            <button className={styles.headerCancelBtn} onClick={closeRedrawModal}>取消</button>
+                            <h3>重绘第 {redrawModal.pageNum} 页</h3>
+                            <button
+                                className={styles.headerConfirmBtn}
+                                onClick={handleSingleRedraw}
+                                disabled={isRedrawing}
+                            >
+                                {isRedrawing ? '重绘中...' : '提交'}
+                            </button>
                         </div>
 
                         <div className={styles.modalBody}>
@@ -302,30 +309,7 @@ export default function ImageGallery({
                                 />
                             </div>
                         </div>
-
-                        <div className={styles.modalFooter}>
-                            <button
-                                className={styles.cancelBtn}
-                                onClick={closeRedrawModal}
-                                disabled={isRedrawing}
-                            >
-                                取消
-                            </button>
-                            <button
-                                className={styles.confirmBtn}
-                                onClick={handleSingleRedraw}
-                                disabled={isRedrawing}
-                            >
-                                {isRedrawing ? (
-                                    <>
-                                        <div className={styles.spinnerSmall}></div>
-                                        重绘中 {(redrawTimer / 10).toFixed(1)}s
-                                    </>
-                                ) : (
-                                    '开始重绘'
-                                )}
-                            </button>
-                        </div>
+                        {/* Footer removed */}
                     </div>
                 </div>
             )}
