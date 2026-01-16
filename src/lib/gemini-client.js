@@ -58,6 +58,54 @@ A single flattened JPEG. **STRICTLY FOLLOW THE TARGET ASPECT RATIO.**
  * @param {number} options.pageNumber - 页码
  * @returns {Promise<string>} - 生成的图像 base64
  */
+// Helper to resize/pad image to target aspect ratio using Canvas (Client-side only)
+async function enforceAspectRatio(base64Str, targetRatio) {
+  if (typeof window === 'undefined') return base64Str; // Skip if server-side
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str.startsWith('data:') ? base64Str : `data:image/png;base64,${base64Str}`;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Determine target geometry
+      let targetWidth, targetHeight;
+      // Base dimension 1920px for high quality
+      if (targetRatio === '9:16') { targetWidth = 1080; targetHeight = 1920; }
+      else if (targetRatio === '3:4') { targetWidth = 1080; targetHeight = 1440; }
+      else if (targetRatio === '4:3') { targetWidth = 1440; targetHeight = 1080; }
+      else { targetWidth = 1920; targetHeight = 1080; } // 16:9 default
+
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      // Fill background (Black or Brand Color? White/Black usually safe)
+      // Using dark dark grey to match "Vogue" style or just Black.
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+      // Draw original image centered and "letterboxed" (contain)
+      const scale = Math.min(targetWidth / img.width, targetHeight / img.height);
+      const drawInfo = {
+        w: img.width * scale,
+        h: img.height * scale,
+        x: (targetWidth - (img.width * scale)) / 2,
+        y: (targetHeight - (img.height * scale)) / 2
+      };
+
+      ctx.drawImage(img, drawInfo.x, drawInfo.y, drawInfo.w, drawInfo.h);
+
+      // Return new base64
+      resolve(canvas.toDataURL('image/jpeg', 0.95)); // Use JPEG for efficiency
+    };
+    img.onerror = () => resolve(base64Str); // Fallback on error
+  });
+}
+
+/**
+ * 生成重绘后的 PPT 页面图像
+ */
 export async function generateMasterDesign({
   pageImageBase64,
   pageContent,
@@ -71,6 +119,10 @@ export async function generateMasterDesign({
   }
 
   try {
+    // 1. PRE-PROCESS IMAGE: Force input image to match target aspect ratio physically
+    // This overcomes the model's bias to preserve input dimensions.
+    const containerizedImage = await enforceAspectRatio(pageImageBase64, aspectRatio);
+
     // Base URL configuration for proxy support
     const rawBaseUrl = process.env.GEMINI_BASE_URL;
     const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/v1\/?$/, "") : undefined;
@@ -93,16 +145,13 @@ export async function generateMasterDesign({
     };
     const resolutionInstruction = ratioInstructions[aspectRatio] || "1920x1080";
 
-    // ULTRA-STRICT PROMPT CONSTRUCTION (PREPENDING INSTRUCTION)
-    // Multimodal models often biases towards the input image aspect ratio.
-    // We must forcefully override this BEFORE the image is seen in the context logic.
+    // ULTRA-STRICT PROMPT CONSTRUCTION
     const strictInstruction = `
 ### ⚠️ CRITICAL OVERRIDE: TARGET FORMAT ${aspectRatio} ⚠️
-- **IGNORE INPUT IMAGE RATIO**. The input image is just for content reference.
+- **INPUT IMAGE HAS BEEN PADDED**. The input image provided is already in ${aspectRatio} ratio (with black bars).
+- **GENERATE FULL BLEED**. Fill the entire ${aspectRatio} canvas. Do not keep the black bars.
 - **OUTPUT MUST BE**: ${aspectRatio} (${resolutionInstruction}).
 - **FORCE VERTICAL/PORTRAIT** if selecting 9:16 or 3:4.
-- **FORCE HORIZONTAL/LANDSCAPE** if selecting 16:9 or 4:3.
-- Do NOT output a square image.
     `.trim();
 
     // 构建提示词
@@ -115,13 +164,13 @@ export async function generateMasterDesign({
     // 准备图像数据
     const imageParts = [];
 
-    if (pageImageBase64) {
+    if (containerizedImage) {
       // 移除 data URL 前缀
-      const base64Data = pageImageBase64.replace(/^data:image\/\w+;base64,/, "");
+      const base64Data = containerizedImage.replace(/^data:image\/\w+;base64,/, "");
       imageParts.push({
         inlineData: {
           data: base64Data,
-          mimeType: "image/png",
+          mimeType: "image/jpeg", // We converted to JPEG in enforceAspectRatio
         },
       });
     }
