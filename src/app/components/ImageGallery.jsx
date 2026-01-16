@@ -11,38 +11,41 @@ export default function ImageGallery({
     isProcessing,
     currentProcessingPage
 }) {
+    // Helper to convert base64 to Blob directly (no canvas)
+    const base64ToBlob = (base64, mimeType = 'image/jpeg') => {
+        // Remove data URL prefix if present
+        const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        return new Blob([byteArray], { type: mimeType });
+    };
+
     const handleDownload = (imageBase64, pageNumber) => {
         if (!imageBase64 || !imageBase64.startsWith('data:image')) {
             alert('图片数据无效');
             return;
         }
 
-        const img = new Image();
-        img.crossOrigin = "anonymous";
+        try {
+            // Detect mime type from data URL
+            const mimeMatch = imageBase64.match(/^data:(image\/\w+);base64,/);
+            const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+            const extension = mimeType === 'image/png' ? 'png' : 'jpg';
 
-        img.onload = () => {
-            const canvas = document.createElement("canvas");
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext("2d");
-            ctx.fillStyle = "#FFFFFF";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
+            // Convert directly to blob (skip canvas)
+            const blob = base64ToBlob(imageBase64, mimeType);
+            const filename = `slide_${String(pageNumber).padStart(3, "0")}.${extension}`;
 
-            // Use FileSaver.js for cross-browser compatibility (fixes Safari)
-            canvas.toBlob((blob) => {
-                if (blob) {
-                    const filename = `slide_${String(pageNumber).padStart(3, "0")}.jpg`;
-                    saveAs(blob, filename);
-                }
-            }, "image/jpeg", 0.95);
-        };
-
-        img.onerror = () => {
-            alert('图片加载失败');
-        };
-
-        img.src = imageBase64;
+            // Use FileSaver.js
+            saveAs(blob, filename);
+        } catch (err) {
+            console.error('Download error:', err);
+            alert('下载失败: ' + err.message);
+        }
     };
 
     const handleDownloadAll = () => {
@@ -56,36 +59,21 @@ export default function ImageGallery({
             return;
         }
 
-        // Sequentially download each valid image using FileSaver
+        // Sequentially download each valid image
         validImages.forEach(([pageNum, imageBase64], index) => {
             setTimeout(() => {
                 try {
-                    const img = new Image();
-                    img.crossOrigin = "anonymous";
+                    // Detect mime type from data URL
+                    const mimeMatch = imageBase64.match(/^data:(image\/\w+);base64,/);
+                    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                    const extension = mimeType === 'image/png' ? 'png' : 'jpg';
 
-                    img.onload = () => {
-                        const canvas = document.createElement("canvas");
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        const ctx = canvas.getContext("2d");
-                        ctx.fillStyle = "#FFFFFF";
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-                        ctx.drawImage(img, 0, 0);
+                    // Convert directly to blob (skip canvas)
+                    const blob = base64ToBlob(imageBase64, mimeType);
+                    const filename = `slide_${String(pageNum).padStart(3, "0")}.${extension}`;
 
-                        // Use FileSaver.js for cross-browser compatibility
-                        canvas.toBlob((blob) => {
-                            if (blob) {
-                                const filename = `slide_${String(pageNum).padStart(3, "0")}.jpg`;
-                                saveAs(blob, filename);
-                            }
-                        }, "image/jpeg", 0.95);
-                    };
-
-                    img.onerror = () => {
-                        console.error(`Failed to load image for page ${pageNum}`);
-                    };
-
-                    img.src = imageBase64;
+                    // Use FileSaver.js
+                    saveAs(blob, filename);
                 } catch (err) {
                     console.error(`Download error for page ${pageNum}:`, err);
                 }
