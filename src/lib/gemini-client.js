@@ -119,9 +119,8 @@ export async function generateMasterDesign({
   }
 
   try {
-    // 1. PRE-PROCESS IMAGE: Force input image to match target aspect ratio physically
-    // This overcomes the model's bias to preserve input dimensions.
-    const containerizedImage = await enforceAspectRatio(pageImageBase64, aspectRatio);
+    // Note: Canvas-based pre-processing removed - not available on server-side.
+    // We rely entirely on prompt engineering for aspect ratio control.
 
     // Base URL configuration for proxy support
     const rawBaseUrl = process.env.GEMINI_BASE_URL;
@@ -136,22 +135,29 @@ export async function generateMasterDesign({
       },
     }, requestOptions);
 
-    // Define Aspect Ratio Instructions
+    // Define Aspect Ratio Instructions with EXPLICIT dimensions
     const ratioInstructions = {
-      "16:9": "1920x1080 (Landscape Wide)",
-      "4:3": "1440x1080 (Landscape Standard)",
-      "9:16": "1080x1920 (Portrait/Mobile)",
-      "3:4": "1080x1440 (Portrait Document)"
+      "16:9": { w: 1920, h: 1080, orient: "LANDSCAPE", desc: "wider than tall" },
+      "4:3": { w: 1440, h: 1080, orient: "LANDSCAPE", desc: "wider than tall" },
+      "9:16": { w: 1080, h: 1920, orient: "PORTRAIT", desc: "taller than wide" },
+      "3:4": { w: 1080, h: 1440, orient: "PORTRAIT", desc: "taller than wide" }
     };
-    const resolutionInstruction = ratioInstructions[aspectRatio] || "1920x1080";
+    const spec = ratioInstructions[aspectRatio] || ratioInstructions["16:9"];
 
-    // ULTRA-STRICT PROMPT CONSTRUCTION
+    // EXTREMELY STRICT PROMPT
     const strictInstruction = `
-### ⚠️ CRITICAL OVERRIDE: TARGET FORMAT ${aspectRatio} ⚠️
-- **INPUT IMAGE HAS BEEN PADDED**. The input image provided is already in ${aspectRatio} ratio (with black bars).
-- **GENERATE FULL BLEED**. Fill the entire ${aspectRatio} canvas. Do not keep the black bars.
-- **OUTPUT MUST BE**: ${aspectRatio} (${resolutionInstruction}).
-- **FORCE VERTICAL/PORTRAIT** if selecting 9:16 or 3:4.
+#####################################################################
+# MANDATORY OUTPUT SPECIFICATION
+#####################################################################
+OUTPUT: ${spec.w}x${spec.h} pixels (${spec.orient})
+ASPECT RATIO: ${aspectRatio}
+
+⚠️ OUTPUT MUST BE ${spec.w} pixels wide and ${spec.h} pixels tall.
+⚠️ OUTPUT MUST BE ${spec.orient} orientation (${spec.desc}).
+⚠️ DO NOT output a square image.
+⚠️ IGNORE the input image dimensions - it is only for content reference.
+⚠️ Redesign the content to fit ${aspectRatio} format.
+#####################################################################
     `.trim();
 
     // 构建提示词
@@ -159,18 +165,18 @@ export async function generateMasterDesign({
       .replace("{brandTonality}", brandInfo.tonality || "Professional, Modern, Premium")
       .replace("{brandColors}", JSON.stringify(brandInfo.colorPalette || ["#FFFFFF", "#000000"]))
       .replace("{pageContent}", pageContent || "(Extract from image)")
-      .replace("1920x1080", resolutionInstruction); // Dynamic Resolution
+      .replace("1920x1080", `${spec.w}x${spec.h}`);
 
     // 准备图像数据
     const imageParts = [];
 
-    if (containerizedImage) {
+    if (pageImageBase64) {
       // 移除 data URL 前缀
-      const base64Data = containerizedImage.replace(/^data:image\/\w+;base64,/, "");
+      const base64Data = pageImageBase64.replace(/^data:image\/\w+;base64,/, "");
       imageParts.push({
         inlineData: {
           data: base64Data,
-          mimeType: "image/jpeg", // We converted to JPEG in enforceAspectRatio
+          mimeType: "image/png",
         },
       });
     }
