@@ -2,9 +2,8 @@ import "./globals.css";
 import { AppProvider } from "./context/AppContext";
 
 // Set metadataBase for production - needed for WeChat sharing
-// Replace with your actual domain when deployed (e.g., https://your-app.vercel.app)
 export const metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://ppt-ai.vercel.app'),
+  metadataBase: new URL('https://88ppt.digirepub.com'),
   title: "PPT-AI | 智能演示文稿重绘系统",
   description: "使用 AI 将您的 PPT 转换为大师级设计作品。输入邀请码，即刻体验 NANO BANANA PRO 的设计魔法。",
   keywords: ["PPT", "AI", "演示文稿", "设计", "NANO BANANA PRO", "PPT 杀手"],
