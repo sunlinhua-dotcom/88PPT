@@ -109,18 +109,13 @@ export default function Home() {
       {/* Header */}
       <header className="header">
         <div className="logo">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="2" y="4" width="20" height="16" rx="4" fill="url(#paint0_linear_logo)" stroke="rgba(255,255,255,0.2)" strokeWidth="0.5" />
-            <circle cx="8" cy="12" r="3" fill="rgba(255,255,255,0.9)" />
-            <path d="M14 10H18" stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M14 14H18" stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" strokeLinecap="round" />
-            <defs>
-              <linearGradient id="paint0_linear_logo" x1="2" y1="4" x2="22" y2="20" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#2997FF" />
-                <stop offset="1" stopColor="#A259FF" />
-              </linearGradient>
-            </defs>
-          </svg>
+          {/* Replace SVG with Image Logo for consistent branding */}
+          <div style={{
+            width: '32px', height: '32px', overflow: 'hidden', borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(41, 151, 255, 0.3)', marginRight: '10px'
+          }}>
+            <img src="/logo.png" alt="PPT AI Pro" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
           <span className="logo-text">PPT AI Pro</span>
         </div>
       </header>
