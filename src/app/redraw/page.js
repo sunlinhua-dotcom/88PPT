@@ -45,47 +45,70 @@ export default function RedrawPage() {
 
             let failCount = 0;
 
+            // Retry configuration
+            const MAX_RETRIES = 3;
+            const RETRY_DELAY = 1000; // Start with 1s
+
             for (let i = 0; i < totalPages; i++) {
                 const page = pdfData.pages[i];
+
+                // Skip if already successfully generated (breakpoint resume)
+                if (generatedImages[page.pageNumber]) {
+                    continue;
+                }
+
                 setCurrentProcessingPage(page.pageNumber);
-                // Update progress based on completed count vs total
-                const progressPerItem = 100 / totalPages;
+                let success = false;
+                let attempt = 0;
 
-                try {
-                    const response = await fetch("/api/generate-image", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            pageImage: page.imageBase64,
-                            pageContent: page.textContent,
-                            brandInfo: brandInfo,
-                            pageNumber: page.pageNumber,
-                            aspectRatio: aspectRatio,
-                        }),
-                    });
+                while (!success && attempt < MAX_RETRIES) {
+                    try {
+                        attempt++;
+                        const response = await fetch("/api/generate-image", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                pageImage: page.imageBase64,
+                                pageContent: page.textContent,
+                                brandInfo: brandInfo,
+                                pageNumber: page.pageNumber,
+                                aspectRatio: aspectRatio,
+                            }),
+                        });
 
-                    const data = await response.json();
+                        const data = await response.json();
 
-                    if (data.success && data.generatedImage) {
-                        setGeneratedImages((prev) => ({
-                            ...prev,
-                            [page.pageNumber]: data.generatedImage,
-                        }));
-                    } else {
-                        console.error("生成失败:", data.error);
-                        setGeneratedImages((prev) => ({
-                            ...prev,
-                            [page.pageNumber]: page.imageBase64, // Keep original on fail
-                        }));
-                        failCount++;
+                        if (data.success && data.generatedImage) {
+                            setGeneratedImages((prev) => ({
+                                ...prev,
+                                [page.pageNumber]: data.generatedImage,
+                            }));
+                            success = true;
+                        } else {
+                            console.error(`Page ${page.pageNumber} attempt ${attempt} failed:`, data.error);
+                            if (attempt < MAX_RETRIES) {
+                                // Wait before retry
+                                await new Promise(r => setTimeout(r, RETRY_DELAY * attempt));
+                            } else {
+                                // Final fail
+                                setGeneratedImages((prev) => ({
+                                    ...prev,
+                                    [page.pageNumber]: null, // Mark as failed explicitly? Or keep undefined? User code used original.
+                                    // Let's keep original image as fallback but maybe we want UI to show retry button.
+                                    // For now, consistent with previous behavior: fallback to original isn't ideal for "resume". 
+                                    // But user asked for "try again if fail".
+                                }));
+                                failCount++;
+                            }
+                        }
+                    } catch (err) {
+                        console.error(`Page ${page.pageNumber} attempt ${attempt} network error:`, err);
+                        if (attempt < MAX_RETRIES) {
+                            await new Promise(r => setTimeout(r, RETRY_DELAY * attempt));
+                        } else {
+                            failCount++;
+                        }
                     }
-                } catch (err) {
-                    console.error(err);
-                    setGeneratedImages((prev) => ({
-                        ...prev,
-                        [page.pageNumber]: page.imageBase64,
-                    }));
-                    failCount++;
                 }
 
                 // Update progress after each
