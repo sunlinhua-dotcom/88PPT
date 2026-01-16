@@ -29,17 +29,11 @@ export default function ImageGallery({
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0);
 
-            // Use Blob for reliable download with correct filename
+            // Use FileSaver.js for cross-browser compatibility (fixes Safari)
             canvas.toBlob((blob) => {
                 if (blob) {
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement("a");
-                    link.href = url;
-                    link.download = `slide_${String(pageNumber).padStart(3, "0")}.jpg`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
+                    const filename = `slide_${String(pageNumber).padStart(3, "0")}.jpg`;
+                    saveAs(blob, filename);
                 }
             }, "image/jpeg", 0.95);
         };
@@ -62,7 +56,7 @@ export default function ImageGallery({
             return;
         }
 
-        // Sequentially download each valid image
+        // Sequentially download each valid image using FileSaver
         validImages.forEach(([pageNum, imageBase64], index) => {
             setTimeout(() => {
                 try {
@@ -78,17 +72,11 @@ export default function ImageGallery({
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
                         ctx.drawImage(img, 0, 0);
 
-                        // Use Blob for more reliable download
+                        // Use FileSaver.js for cross-browser compatibility
                         canvas.toBlob((blob) => {
                             if (blob) {
-                                const url = URL.createObjectURL(blob);
-                                const link = document.createElement("a");
-                                link.href = url;
-                                link.download = `slide_${String(pageNum).padStart(3, "0")}.jpg`;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                                URL.revokeObjectURL(url); // Clean up
+                                const filename = `slide_${String(pageNum).padStart(3, "0")}.jpg`;
+                                saveAs(blob, filename);
                             }
                         }, "image/jpeg", 0.95);
                     };
@@ -101,7 +89,7 @@ export default function ImageGallery({
                 } catch (err) {
                     console.error(`Download error for page ${pageNum}:`, err);
                 }
-            }, index * 1000); // 1s spacing for reliability
+            }, index * 1200); // 1.2s spacing for reliability
         });
     };
 
