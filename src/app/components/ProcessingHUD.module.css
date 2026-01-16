@@ -1,0 +1,108 @@
+.hudContainer {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+    /* Let clicks pass through if needed, but the HUD itself should capture if interactive */
+    animation: slideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hudPill {
+    background: rgba(28, 28, 30, 0.85);
+    /* Apple Dark Gray */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    border-radius: 99px;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 320px;
+    justify-content: space-between;
+}
+
+.statusSection {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-top-color: #0A84FF;
+    /* Apple Blue for activity */
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.statusText {
+    font-size: 14px;
+    font-weight: 500;
+    color: white;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+}
+
+.progressSection {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.progressTrack {
+    width: 60px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progressBar {
+    height: 100%;
+    background: #0A84FF;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.pageCount {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+    font-variant-numeric: tabular-nums;
+}
+
+.timePill {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(0, 0, 0, 0.3);
+    padding: 4px 12px;
+    border-radius: 99px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
