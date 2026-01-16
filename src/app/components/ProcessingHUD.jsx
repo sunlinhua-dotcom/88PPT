@@ -1,20 +1,22 @@
 import React from 'react';
 import styles from './ProcessingHUD.module.css';
 
-export default function ProcessingHUD({ current, total, progress, estimatedTime }) {
+export default function ProcessingHUD({ current, total, progress, estimatedTime, onStop, isProcessing }) {
     if (total === 0) return null;
+
+    const isComplete = current >= total && !isProcessing;
 
     return (
         <div className={styles.hudContainer}>
             <div className={styles.hudPill}>
                 <div className={styles.statusSection}>
-                    {current < total ? (
-                        <div className={styles.spinner}></div>
-                    ) : (
+                    {isComplete ? (
                         <span>✅</span>
+                    ) : (
+                        <div className={styles.spinner}></div>
                     )}
                     <span className={styles.statusText}>
-                        {current < total ? "AI 正在重绘中..." : "重绘完成"}
+                        {isComplete ? "重绘完成" : "AI 正在重绘中..."}
                     </span>
                 </div>
 
@@ -29,9 +31,20 @@ export default function ProcessingHUD({ current, total, progress, estimatedTime 
                         {current} / {total}
                     </span>
                 </div>
+
+                {/* Stop Button */}
+                {!isComplete && isProcessing && onStop && (
+                    <button
+                        className={styles.stopButton}
+                        onClick={onStop}
+                        title="停止处理"
+                    >
+                        ⏹️ 停止
+                    </button>
+                )}
             </div>
 
-            {current < total && estimatedTime && (
+            {!isComplete && isProcessing && estimatedTime && (
                 <div className={styles.timePill}>
                     ⏱️ 预计剩余时间：{estimatedTime}
                 </div>

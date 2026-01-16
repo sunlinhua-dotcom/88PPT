@@ -12,12 +12,14 @@ export default function RedrawPage() {
     const { state } = useAppContext();
     const { pdfData, brandInfo, aspectRatio } = state;
     const processedRef = useRef(false);
+    const shouldStopRef = useRef(false); // Stop signal
 
     const [generatedImages, setGeneratedImages] = useState({});
     const [isProcessing, setIsProcessing] = useState(false);
     const [processingProgress, setProcessingProgress] = useState(0);
     const [currentProcessingPage, setCurrentProcessingPage] = useState(0);
     const [error, setError] = useState(null);
+    const [isStopped, setIsStopped] = useState(false); // Track if user stopped
 
     // Calculate stats for HUD
     const totalPages = pdfData?.pages?.length || 0;
@@ -25,6 +27,12 @@ export default function RedrawPage() {
     const estimatedTime = isProcessing
         ? `约 ${Math.ceil((totalPages - generatedCount) * 0.5)} 分钟`
         : null;
+
+    // Stop processing handler
+    const handleStopProcessing = () => {
+        shouldStopRef.current = true;
+        setIsStopped(true);
+    };
 
     // Redirect if no data
     useEffect(() => {
@@ -38,21 +46,27 @@ export default function RedrawPage() {
         if (!pdfData || !brandInfo || processedRef.current) return;
 
         const startProcessing = async () => {
-            processedRef.current = true; // Prevent double firing
+            processedRef.current = true;
+            shouldStopRef.current = false;
+            setIsStopped(false);
             setIsProcessing(true);
             setError(null);
             setGeneratedImages({});
 
             let failCount = 0;
 
-            // Retry configuration
             const MAX_RETRIES = 3;
-            const RETRY_DELAY = 1000; // Start with 1s
+            const RETRY_DELAY = 1000;
 
             for (let i = 0; i < totalPages; i++) {
+                // Check if user requested stop
+                if (shouldStopRef.current) {
+                    setError(`已停止处理。已完成 ${generatedCount} / ${totalPages} 页。`);
+                    break;
+                }
+
                 const page = pdfData.pages[i];
 
-                // Skip if already successfully generated (breakpoint resume)
                 if (generatedImages[page.pageNumber]) {
                     continue;
                 }
@@ -61,7 +75,7 @@ export default function RedrawPage() {
                 let success = false;
                 let attempt = 0;
 
-                while (!success && attempt < MAX_RETRIES) {
+                while (!success && attempt < MAX_RETRIES && !shouldStopRef.current) {
                     try {
                         attempt++;
                         const response = await fetch("/api/generate-image", {
@@ -87,16 +101,11 @@ export default function RedrawPage() {
                         } else {
                             console.error(`Page ${page.pageNumber} attempt ${attempt} failed:`, data.error);
                             if (attempt < MAX_RETRIES) {
-                                // Wait before retry
                                 await new Promise(r => setTimeout(r, RETRY_DELAY * attempt));
                             } else {
-                                // Final fail
                                 setGeneratedImages((prev) => ({
                                     ...prev,
-                                    [page.pageNumber]: null, // Mark as failed explicitly? Or keep undefined? User code used original.
-                                    // Let's keep original image as fallback but maybe we want UI to show retry button.
-                                    // For now, consistent with previous behavior: fallback to original isn't ideal for "resume". 
-                                    // But user asked for "try again if fail".
+                                    [page.pageNumber]: null,
                                 }));
                                 failCount++;
                             }
@@ -111,14 +120,13 @@ export default function RedrawPage() {
                     }
                 }
 
-                // Update progress after each
                 setProcessingProgress(Math.round(((i + 1) / totalPages) * 100));
             }
 
             setIsProcessing(false);
             setCurrentProcessingPage(0);
 
-            if (failCount > 0) {
+            if (!shouldStopRef.current && failCount > 0) {
                 setError(`处理完成，${failCount} 页生成失败（已保留原图）。`);
             }
         };
@@ -163,10 +171,12 @@ export default function RedrawPage() {
     return (
         <main className="main-container" style={{ maxWidth: '1200px', paddingTop: '80px' }}>
             <ProcessingHUD
-                current={generatedCount + (isProcessing ? 0 : 0)}
+                current={generatedCount}
                 total={totalPages}
                 progress={processingProgress}
                 estimatedTime={estimatedTime}
+                onStop={handleStopProcessing}
+                isProcessing={isProcessing}
             />
 
             {/* Header with Back Button */}
