@@ -112,6 +112,7 @@ export async function generateMasterDesign({
   brandInfo,
   pageNumber,
   aspectRatio = "16:9",
+  additionalInstructions = "",
 }) {
   // 检查 API 密钥
   if (!genAI) {
@@ -182,6 +183,17 @@ ASPECT RATIO: ${aspectRatio}
 ⚠️ IMPORTANT: Maintain the EXACT visual style from the reference.
 ⚠️ If there's a header/footer pattern, REPLICATE it in the output.
 ⚠️ Use the SAME color palette and layout structure.
+`;
+    }
+
+    // Add user's additional instructions if provided
+    if (additionalInstructions && additionalInstructions.trim()) {
+      prompt += `
+
+### 🎯 USER'S ADDITIONAL INSTRUCTIONS (MUST FOLLOW):
+${additionalInstructions}
+
+⚠️ PRIORITIZE the above user instructions when redesigning.
 `;
     }
 

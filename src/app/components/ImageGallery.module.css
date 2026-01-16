@@ -16,7 +16,6 @@
 .comparisonRow {
     display: grid;
     grid-template-columns: 1fr 40px 1.5fr;
-    /* Original - Arrow - New (Larger) */
     align-items: center;
     gap: 20px;
     background: rgba(255, 255, 255, 0.03);
@@ -31,7 +30,6 @@
     position: relative;
     border-radius: 12px;
     overflow: hidden;
-    /* Aspect ratio managed by image itself, but wrapper limits height */
     max-height: 400px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: #000;
@@ -56,7 +54,6 @@
     height: auto;
     display: block;
     opacity: 0.8;
-    /* Dim slightly to emphasize new one */
     transition: opacity 0.3s;
 }
 
@@ -85,7 +82,6 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: #000;
     min-height: 200px;
-    /* Ensure space before generation */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -98,7 +94,7 @@
     animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Processing State in Right Panel */
+/* Processing State */
 .processingPlaceholder {
     width: 100%;
     height: 100%;
@@ -120,13 +116,23 @@
     animation: spin 1s linear infinite;
 }
 
+.spinnerSmall {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 8px;
+}
+
 .processingText {
     font-size: 13px;
     color: rgba(255, 255, 255, 0.5);
     animation: pulse 2s infinite;
 }
 
-/* Completed Overlay/Actions */
+/* Actions Overlay */
 .actionsOverlay {
     position: absolute;
     bottom: 0;
@@ -136,6 +142,7 @@
     background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
     display: flex;
     justify-content: flex-end;
+    gap: 8px;
     opacity: 0;
     transition: opacity 0.2s;
 }
@@ -144,7 +151,8 @@
     opacity: 1;
 }
 
-.downloadBtn {
+.downloadBtn,
+.redrawBtn {
     background: white;
     color: black;
     border: none;
@@ -156,12 +164,23 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    transition: transform 0.1s;
+    transition: all 0.15s;
 }
 
-.downloadBtn:hover {
+.downloadBtn:hover,
+.redrawBtn:hover {
     transform: scale(1.05);
-    background: #f0f0f0;
+}
+
+.redrawBtn {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.redrawBtn:hover {
+    background: rgba(255, 255, 255, 0.25);
 }
 
 /* Download All Section */
@@ -193,6 +212,182 @@
     box-shadow: 0 15px 40px rgba(41, 151, 255, 0.4);
 }
 
+/* ========== Redraw Modal ========== */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.modalContent {
+    background: var(--bg-primary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.modalHeader h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.modalClose {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.modalClose:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
+}
+
+.modalBody {
+    padding: 24px;
+}
+
+.previewSection {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.previewItem {
+    flex: 1;
+    position: relative;
+}
+
+.previewLabel {
+    display: block;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.previewImage {
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.promptSection {
+    margin-top: 16px;
+}
+
+.promptLabel {
+    display: block;
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+.promptInput {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--text-primary);
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.promptInput:focus {
+    border-color: var(--accent-blue);
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.promptInput::placeholder {
+    color: var(--text-tertiary);
+}
+
+.modalFooter {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px 24px;
+}
+
+.cancelBtn,
+.confirmBtn {
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cancelBtn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+}
+
+.cancelBtn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text-primary);
+}
+
+.confirmBtn {
+    background: var(--accent-gradient);
+    border: none;
+    color: white;
+    min-width: 140px;
+}
+
+.confirmBtn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(41, 151, 255, 0.3);
+}
+
+.confirmBtn:disabled,
+.cancelBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ========== Animations ========== */
 @keyframes spin {
     to {
         transform: rotate(360deg);
@@ -232,5 +427,71 @@
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+/* ========== Mobile Responsive ========== */
+@media (max-width: 768px) {
+    .comparisonRow {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 16px;
+    }
+
+    .dividerSection {
+        transform: rotate(90deg);
+        padding: 8px 0;
+    }
+
+    .originalSection,
+    .generatedSection {
+        max-height: none;
+    }
+
+    .actionsOverlay {
+        opacity: 1;
+        /* Always visible on mobile */
+        position: relative;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 0 0 12px 12px;
+        justify-content: center;
+    }
+
+    .downloadAllSection {
+        right: 16px;
+        bottom: 16px;
+    }
+
+    .downloadAllButton {
+        padding: 12px 20px;
+        font-size: 14px;
+    }
+
+    .modalContent {
+        max-width: 100%;
+        border-radius: 16px;
+        max-height: 85vh;
+    }
+
+    .previewSection {
+        flex-direction: column;
+    }
+
+    .modalHeader {
+        padding: 16px 20px;
+    }
+
+    .modalBody {
+        padding: 16px 20px;
+    }
+
+    .modalFooter {
+        padding: 12px 20px 20px;
+        flex-direction: column;
+    }
+
+    .cancelBtn,
+    .confirmBtn {
+        width: 100%;
     }
 }

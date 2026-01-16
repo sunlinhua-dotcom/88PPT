@@ -126,6 +126,38 @@ export default function RedrawPage() {
         startProcessing();
     }, [pdfData, brandInfo, aspectRatio]);
 
+    // Single page redraw handler
+    const handleSingleRedraw = async (pageNumber, originalImage, additionalPrompt) => {
+        try {
+            const response = await fetch("/api/generate-image", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    pageImage: originalImage,
+                    pageContent: additionalPrompt || "", // Use additional prompt as content hint
+                    brandInfo: brandInfo,
+                    pageNumber: pageNumber,
+                    aspectRatio: aspectRatio,
+                    additionalInstructions: additionalPrompt, // Pass to API
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.generatedImage) {
+                setGeneratedImages((prev) => ({
+                    ...prev,
+                    [pageNumber]: data.generatedImage,
+                }));
+            } else {
+                throw new Error(data.error || "重绘失败");
+            }
+        } catch (err) {
+            console.error("Single redraw error:", err);
+            throw err;
+        }
+    };
+
     if (!pdfData || !brandInfo) return null;
 
     return (
@@ -190,6 +222,9 @@ export default function RedrawPage() {
                     processingProgress={processingProgress}
                     isProcessing={isProcessing}
                     currentProcessingPage={currentProcessingPage}
+                    onSingleRedraw={handleSingleRedraw}
+                    brandInfo={brandInfo}
+                    aspectRatio={aspectRatio}
                 />
             </section>
 

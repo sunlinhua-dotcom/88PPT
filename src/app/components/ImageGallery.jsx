@@ -1,6 +1,6 @@
 "use client";
 
-import JSZip from 'jszip';
+import { useState } from 'react';
 import { saveAs } from 'file-saver';
 import styles from "./ImageGallery.module.css";
 
@@ -9,11 +9,19 @@ export default function ImageGallery({
     generatedImages,
     processingProgress,
     isProcessing,
-    currentProcessingPage
+    currentProcessingPage,
+    onSingleRedraw, // New callback for single page redraw
+    brandInfo,
+    aspectRatio
 }) {
+    // Modal state for single redraw
+    const [redrawModal, setRedrawModal] = useState({ open: false, pageNum: null, originalImage: null });
+    const [redrawPrompt, setRedrawPrompt] = useState("");
+    const [isRedrawing, setIsRedrawing] = useState(false);
+    const [redrawTimer, setRedrawTimer] = useState(0);
+
     // Helper to convert base64 to Blob directly (no canvas)
     const base64ToBlob = (base64, mimeType = 'image/jpeg') => {
-        // Remove data URL prefix if present
         const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
         const byteCharacters = atob(base64Data);
         const byteNumbers = new Array(byteCharacters.length);
@@ -31,16 +39,11 @@ export default function ImageGallery({
         }
 
         try {
-            // Detect mime type from data URL
             const mimeMatch = imageBase64.match(/^data:(image\/\w+);base64,/);
             const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
             const extension = mimeType === 'image/png' ? 'png' : 'jpg';
-
-            // Convert directly to blob (skip canvas)
             const blob = base64ToBlob(imageBase64, mimeType);
             const filename = `slide_${String(pageNumber).padStart(3, "0")}.${extension}`;
-
-            // Use FileSaver.js
             saveAs(blob, filename);
         } catch (err) {
             console.error('Download error:', err);
@@ -49,7 +52,6 @@ export default function ImageGallery({
     };
 
     const handleDownloadAll = () => {
-        // Filter out null/invalid entries first
         const validImages = Object.entries(generatedImages).filter(
             ([, imageBase64]) => imageBase64 && imageBase64.startsWith('data:image')
         );
@@ -59,26 +61,56 @@ export default function ImageGallery({
             return;
         }
 
-        // Sequentially download each valid image
         validImages.forEach(([pageNum, imageBase64], index) => {
             setTimeout(() => {
                 try {
-                    // Detect mime type from data URL
                     const mimeMatch = imageBase64.match(/^data:(image\/\w+);base64,/);
                     const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
                     const extension = mimeType === 'image/png' ? 'png' : 'jpg';
-
-                    // Convert directly to blob (skip canvas)
                     const blob = base64ToBlob(imageBase64, mimeType);
                     const filename = `slide_${String(pageNum).padStart(3, "0")}.${extension}`;
-
-                    // Use FileSaver.js
                     saveAs(blob, filename);
                 } catch (err) {
                     console.error(`Download error for page ${pageNum}:`, err);
                 }
-            }, index * 1200); // 1.2s spacing for reliability
+            }, index * 1200);
         });
+    };
+
+    // Open redraw modal
+    const openRedrawModal = (pageNum, originalImage) => {
+        setRedrawModal({ open: true, pageNum, originalImage });
+        setRedrawPrompt("");
+    };
+
+    // Close modal
+    const closeRedrawModal = () => {
+        setRedrawModal({ open: false, pageNum: null, originalImage: null });
+        setRedrawPrompt("");
+        setIsRedrawing(false);
+    };
+
+    // Handle single redraw
+    const handleSingleRedraw = async () => {
+        if (!onSingleRedraw) return;
+
+        setIsRedrawing(true);
+        const startTime = Date.now();
+        const timerInterval = setInterval(() => {
+            setRedrawTimer(Math.floor((Date.now() - startTime) / 100));
+        }, 100);
+
+        try {
+            await onSingleRedraw(redrawModal.pageNum, redrawModal.originalImage, redrawPrompt);
+            closeRedrawModal();
+        } catch (err) {
+            console.error("Redraw error:", err);
+            alert("重绘失败: " + err.message);
+        } finally {
+            clearInterval(timerInterval);
+            setIsRedrawing(false);
+            setRedrawTimer(0);
+        }
     };
 
     const generatedCount = Object.keys(generatedImages).length;
@@ -91,7 +123,6 @@ export default function ImageGallery({
                     const pageNum = page.pageNumber;
                     const generatedImage = generatedImages[pageNum];
                     const isRowProcessing = currentProcessingPage === pageNum && isProcessing;
-                    const isWaiting = currentProcessingPage < pageNum && isProcessing && !generatedImage;
 
                     return (
                         <div key={pageNum} className={styles.comparisonRow}>
@@ -129,7 +160,13 @@ export default function ImageGallery({
                                                 className={styles.downloadBtn}
                                                 onClick={() => handleDownload(generatedImage, pageNum)}
                                             >
-                                                ⬇️ 下载 JPEG
+                                                ⬇️ 下载
+                                            </button>
+                                            <button
+                                                className={styles.redrawBtn}
+                                                onClick={() => openRedrawModal(pageNum, page.imageBase64)}
+                                            >
+                                                🔄 重绘
                                             </button>
                                         </div>
                                     </>
@@ -162,6 +199,69 @@ export default function ImageGallery({
                     >
                         ⬇️ 一键下载所有图片 ({generatedCount})
                     </button>
+                </div>
+            )}
+
+            {/* Redraw Modal */}
+            {redrawModal.open && (
+                <div className={styles.modalOverlay} onClick={closeRedrawModal}>
+                    <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+                        <div className={styles.modalHeader}>
+                            <h3>🔄 重绘第 {redrawModal.pageNum} 页</h3>
+                            <button className={styles.modalClose} onClick={closeRedrawModal}>✕</button>
+                        </div>
+
+                        <div className={styles.modalBody}>
+                            <div className={styles.previewSection}>
+                                <div className={styles.previewItem}>
+                                    <span className={styles.previewLabel}>原图</span>
+                                    <img src={redrawModal.originalImage} alt="Original" className={styles.previewImage} />
+                                </div>
+                                {generatedImages[redrawModal.pageNum] && (
+                                    <div className={styles.previewItem}>
+                                        <span className={styles.previewLabel}>当前</span>
+                                        <img src={generatedImages[redrawModal.pageNum]} alt="Current" className={styles.previewImage} />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className={styles.promptSection}>
+                                <label className={styles.promptLabel}>补充提示词（可选）</label>
+                                <textarea
+                                    className={styles.promptInput}
+                                    value={redrawPrompt}
+                                    onChange={(e) => setRedrawPrompt(e.target.value)}
+                                    placeholder="例如：更简洁的布局、增加科技感、使用深色背景..."
+                                    rows={3}
+                                    disabled={isRedrawing}
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.modalFooter}>
+                            <button
+                                className={styles.cancelBtn}
+                                onClick={closeRedrawModal}
+                                disabled={isRedrawing}
+                            >
+                                取消
+                            </button>
+                            <button
+                                className={styles.confirmBtn}
+                                onClick={handleSingleRedraw}
+                                disabled={isRedrawing}
+                            >
+                                {isRedrawing ? (
+                                    <>
+                                        <div className={styles.spinnerSmall}></div>
+                                        重绘中 {(redrawTimer / 10).toFixed(1)}s
+                                    </>
+                                ) : (
+                                    '开始重绘'
+                                )}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

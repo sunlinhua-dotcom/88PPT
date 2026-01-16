@@ -22,7 +22,7 @@ export async function POST(request) {
             );
         }
 
-        const { pageImage, pageContent, brandInfo, pageNumber, aspectRatio } = await request.json();
+        const { pageImage, pageContent, brandInfo, pageNumber, aspectRatio, additionalInstructions } = await request.json();
 
         if (!pageImage) {
             return NextResponse.json(
@@ -51,7 +51,8 @@ export async function POST(request) {
                 colorPalette: ["#1a1a2e", "#16213e", "#0f3460", "#e94560"],
             },
             pageNumber,
-            aspectRatio: aspectRatio || "16:9", // Pass aspect ratio to generator
+            aspectRatio: aspectRatio || "16:9",
+            additionalInstructions: additionalInstructions || "", // Pass additional instructions
         });
 
         return NextResponse.json({
