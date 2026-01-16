@@ -37,24 +37,33 @@ export default function ImageGallery({
     };
 
     const handleDownloadAll = () => {
-        // Sequentially download each generated image
+        // Sequentially download each generated image using Canvas to ensure format/quality
         Object.entries(generatedImages).forEach(([pageNum, imageBase64], index) => {
             setTimeout(() => {
-                const link = document.createElement("a");
-                link.href = imageBase64; // Direct Base64 download (likely PNG or converted JPEG from API)
-                // Note: The API usually returns JPEG data URL, or we can assume it.
-                // If it's raw base64 from Gemini, it has a mime type prefix usually.
-                // Let's assume standard behavior.
+                const img = new Image();
+                img.src = imageBase64;
+                img.crossOrigin = "anonymous";
+                img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext("2d");
+                    ctx.fillStyle = "#FFFFFF";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
 
-                // Construct filename
-                const extension = imageBase64.substring("data:image/".length, imageBase64.indexOf(";base64"));
-                const filename = `slide_${String(pageNum).padStart(3, "0")}.${extension === 'jpeg' ? 'jpg' : extension}`;
+                    // Convert to high-quality JPEG
+                    const jpgDataUrl = canvas.toDataURL("image/jpeg", 0.95);
+                    const filename = `slide_${String(pageNum).padStart(3, "0")}.jpg`;
 
-                link.download = filename;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }, index * 500); // 500ms delay to prevent browser blocking
+                    const link = document.createElement("a");
+                    link.href = jpgDataUrl;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                };
+            }, index * 800); // 800ms spacing to prevent throttling
         });
     };
 

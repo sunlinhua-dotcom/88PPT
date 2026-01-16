@@ -198,7 +198,8 @@ export async function generateMasterDesign({
     if (response.candidates && response.candidates[0]?.content?.parts) {
       for (const part of response.candidates[0].content.parts) {
         if (part.inlineData) {
-          return `data:${part.inlineData.mimeType}; base64, ${part.inlineData.data} `;
+          // Strict Data URL format: no spaces
+          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
         }
       }
     }
