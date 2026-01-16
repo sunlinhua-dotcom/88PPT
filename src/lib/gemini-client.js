@@ -167,6 +167,24 @@ ASPECT RATIO: ${aspectRatio}
       .replace("{pageContent}", pageContent || "(Extract from image)")
       .replace("1920x1080", `${spec.w}x${spec.h}`);
 
+    // Add custom style profile instructions if provided
+    if (brandInfo.isCustomStyle && brandInfo.styleProfile) {
+      const sp = brandInfo.styleProfile;
+      prompt += `
+
+### 🎨 CUSTOM STYLE REFERENCE (MUST FOLLOW EXACTLY):
+- **Layout Style**: ${sp.layoutStyle || "Modern"}
+- **Fixed Header**: ${sp.fixedElements?.header || "None"}
+- **Fixed Footer**: ${sp.fixedElements?.footer || "None"}
+- **Design Keywords**: ${sp.keywords?.join(", ") || "Professional"}
+- **Color Palette**: ${sp.colors?.join(", ") || "Monochrome"}
+
+⚠️ IMPORTANT: Maintain the EXACT visual style from the reference.
+⚠️ If there's a header/footer pattern, REPLICATE it in the output.
+⚠️ Use the SAME color palette and layout structure.
+`;
+    }
+
     // 准备图像数据
     const imageParts = [];
 
