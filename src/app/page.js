@@ -17,6 +17,7 @@ export default function Home() {
   const [error, setError] = useState(null);
   const [apiAvailable, setApiAvailable] = useState(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [submittingTask, setSubmittingTask] = useState(false);
 
   useEffect(() => {
     // Check session verification
@@ -80,6 +81,43 @@ export default function Home() {
     router.push("/redraw");
   };
 
+  // Submit to background processing
+  const handleSubmitBackground = async () => {
+    if (!pdfData || !brandInfo) return;
+
+    if (!apiAvailable) {
+      setError("从环境配置中未检测到 Gemini API 密钥");
+      return;
+    }
+
+    setSubmittingTask(true);
+    try {
+      const response = await fetch("/api/task/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pages: pdfData.pages,
+          brandInfo,
+          aspectRatio,
+          fileName: pdfData.fileName
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Navigate to task detail page
+        router.push(`/tasks/${data.task.id}`);
+      } else {
+        setError(data.error || "提交任务失败");
+      }
+    } catch (err) {
+      setError("提交失败: " + err.message);
+    } finally {
+      setSubmittingTask(false);
+    }
+  };
+
   const canStartProcessing = pdfData && brandInfo;
 
   // Render appropriate badge for file type
@@ -118,6 +156,17 @@ export default function Home() {
           </div>
           <span className="logo-text">PPT AI Pro</span>
         </div>
+        <a href="/tasks" style={{
+          color: 'var(--text-secondary)',
+          textDecoration: 'none',
+          fontSize: '14px',
+          padding: '8px 16px',
+          borderRadius: '8px',
+          background: 'rgba(255, 255, 255, 0.05)',
+          transition: 'all 0.2s'
+        }}>
+          📋 任务列表
+        </a>
       </header>
 
       {/* Hero */}
@@ -201,13 +250,31 @@ export default function Home() {
 
       {/* 4. Action */}
       {pdfData && brandInfo && (
-        <div className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
+        <div className="animate-fade-in" style={{ animationDelay: '0.3s', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <button
             className="start-button"
             onClick={handleStartProcessing}
             disabled={!canStartProcessing}
           >
             进入大师工坊 ({pdfData.totalPages} 页)
+          </button>
+          <button
+            onClick={handleSubmitBackground}
+            disabled={!canStartProcessing || submittingTask}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: 'var(--text-secondary)',
+              padding: '14px 28px',
+              borderRadius: '14px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              width: '100%'
+            }}
+          >
+            {submittingTask ? '提交中...' : '📤 提交到后台处理（可离开页面）'}
           </button>
         </div>
       )}
