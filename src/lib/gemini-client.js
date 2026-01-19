@@ -105,6 +105,7 @@ async function enforceAspectRatio(base64Str, targetRatio) {
 
 /**
  * 生成重绘后的 PPT 页面图像
+ * 使用 apiyi.com API 直接调用
  */
 export async function generateMasterDesign({
   pageImageBase64,
@@ -114,34 +115,23 @@ export async function generateMasterDesign({
   aspectRatio = "16:9",
   additionalInstructions = "",
 }) {
-  // 检查 API 密钥
-  if (!genAI) {
+  // 获取 API 配置
+  const API_KEY = process.env.GEMINI_API_KEY;
+  const BASE_URL = process.env.GEMINI_BASE_URL || 'https://api.apiyi.com/v1beta';
+  const MODEL = 'gemini-3-pro-image-preview';
+
+  if (!API_KEY) {
     throw new Error("请先在 .env.local 文件中配置有效的 GEMINI_API_KEY");
   }
 
   try {
-    // Note: Canvas-based pre-processing removed - not available on server-side.
-    // We rely entirely on prompt engineering for aspect ratio control.
-
-    // Base URL configuration for proxy support
-    const rawBaseUrl = process.env.GEMINI_BASE_URL;
-    const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/v1\/?$/, "") : undefined;
-    const requestOptions = baseUrl ? { baseUrl } : {};
-
-    // 使用 Gemini 2.0 Flash 模型（支持图像生成）or Custom Model
-    const model = genAI.getGenerativeModel({
-      model: "gemini-3-pro-image-preview",
-      generationConfig: {
-        responseModalities: ["image", "text"],
-      },
-    }, requestOptions);
-
     // Define Aspect Ratio Instructions with EXPLICIT dimensions
     const ratioInstructions = {
-      "16:9": { w: 1920, h: 1080, orient: "LANDSCAPE", desc: "wider than tall" },
-      "4:3": { w: 1440, h: 1080, orient: "LANDSCAPE", desc: "wider than tall" },
-      "9:16": { w: 1080, h: 1920, orient: "PORTRAIT", desc: "taller than wide" },
-      "3:4": { w: 1080, h: 1440, orient: "PORTRAIT", desc: "taller than wide" }
+      "16:9": { w: 1920, h: 1080, orient: "LANDSCAPE", desc: "wider than tall", apiRatio: "16:9" },
+      "4:3": { w: 1440, h: 1080, orient: "LANDSCAPE", desc: "wider than tall", apiRatio: "4:3" },
+      "9:16": { w: 1080, h: 1920, orient: "PORTRAIT", desc: "taller than wide", apiRatio: "9:16" },
+      "3:4": { w: 1080, h: 1440, orient: "PORTRAIT", desc: "taller than wide", apiRatio: "3:4" },
+      "1:1": { w: 1080, h: 1080, orient: "SQUARE", desc: "equal width and height", apiRatio: "1:1" }
     };
     const spec = ratioInstructions[aspectRatio] || ratioInstructions["16:9"];
 
@@ -155,7 +145,7 @@ ASPECT RATIO: ${aspectRatio}
 
 ⚠️ OUTPUT MUST BE ${spec.w} pixels wide and ${spec.h} pixels tall.
 ⚠️ OUTPUT MUST BE ${spec.orient} orientation (${spec.desc}).
-⚠️ DO NOT output a square image.
+⚠️ DO NOT output a square image unless specified.
 ⚠️ IGNORE the input image dimensions - it is only for content reference.
 ⚠️ Redesign the content to fit ${aspectRatio} format.
 #####################################################################
@@ -166,6 +156,7 @@ ASPECT RATIO: ${aspectRatio}
       .replace("{brandTonality}", brandInfo.tonality || "Professional, Modern, Premium")
       .replace("{brandColors}", JSON.stringify(brandInfo.colorPalette || ["#FFFFFF", "#000000"]))
       .replace("{pageContent}", pageContent || "(Extract from image)")
+      .replace("{resolutionInstruction}", `${spec.w}x${spec.h} pixels (${spec.orient})`)
       .replace("1920x1080", `${spec.w}x${spec.h}`);
 
     // Add custom style profile instructions if provided
@@ -197,45 +188,65 @@ ${additionalInstructions}
 `;
     }
 
-    // 准备图像数据
-    const imageParts = [];
+    // 准备请求内容
+    const parts = [{ text: prompt }];
 
+    // 添加页面图像
     if (pageImageBase64) {
-      // 移除 data URL 前缀
       const base64Data = pageImageBase64.replace(/^data:image\/\w+;base64,/, "");
-      imageParts.push({
-        inlineData: {
-          data: base64Data,
-          mimeType: "image/png",
-        },
+      parts.push({
+        inline_data: {
+          mime_type: "image/png",
+          data: base64Data
+        }
       });
     }
 
     // 如果有品牌 Logo，也添加进去
     if (brandInfo.logoBase64) {
       const logoBase64Data = brandInfo.logoBase64.replace(/^data:image\/\w+;base64,/, "");
-      imageParts.push({
-        inlineData: {
-          data: logoBase64Data,
-          mimeType: "image/png",
-        },
+      parts.push({
+        inline_data: {
+          mime_type: "image/png",
+          data: logoBase64Data
+        }
       });
     }
 
-    // 调用 Gemini API
-    const result = await model.generateContent([
-      prompt,
-      ...imageParts,
-    ]);
+    // 调用 API
+    const response = await fetch(`${BASE_URL}/models/${MODEL}:generateContent`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: parts
+        }],
+        generationConfig: {
+          responseModalities: ["IMAGE"],
+          imageConfig: {
+            aspectRatio: spec.apiRatio,
+            imageSize: "1K"
+          }
+        }
+      })
+    });
 
-    const response = await result.response;
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API 请求失败 [${response.status}]: ${errorText}`);
+    }
+
+    const data = await response.json();
 
     // 提取生成的图像
-    if (response.candidates && response.candidates[0]?.content?.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          // Strict Data URL format: no spaces
-          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+    if (data.candidates && data.candidates[0]?.content?.parts) {
+      for (const part of data.candidates[0].content.parts) {
+        if (part.inline_data) {
+          const mimeType = part.inline_data.mime_type || part.inline_data.mimeType || 'image/png';
+          return `data:${mimeType};base64,${part.inline_data.data}`;
         }
       }
     }
