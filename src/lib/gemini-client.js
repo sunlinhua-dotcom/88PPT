@@ -264,28 +264,44 @@ ${additionalInstructions}
  * @returns {Promise<string>} - 图像内容描述
  */
 export async function analyzeImageContent(imageBase64) {
-  if (!genAI) {
+  const API_KEY = process.env.GEMINI_ANALYSIS_API_KEY || process.env.GEMINI_API_KEY;
+  const BASE_URL = process.env.GEMINI_BASE_URL || 'https://api.apiyi.com/v1beta';
+  const MODEL = 'gemini-3-flash-preview';
+
+  if (!API_KEY) {
     return "";
   }
 
   try {
-    const requestOptions = process.env.GEMINI_BASE_URL ? { baseUrl: process.env.GEMINI_BASE_URL } : {};
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" }, requestOptions);
-
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
 
-    const result = await model.generateContent([
-      "请详细描述这张 PPT 页面的所有内容，包括：标题、正文文字、图表数据、图片描述等。用中文回复。",
-      {
-        inlineData: {
-          data: base64Data,
-          mimeType: "image/png",
-        },
+    const response = await fetch(`${BASE_URL}/models/${MODEL}:generateContent`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json'
       },
-    ]);
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: "请详细描述这张 PPT 页面的所有内容，包括：标题、正文文字、图表数据、图片描述等。用中文回复。" },
+            {
+              inline_data: {
+                mime_type: "image/png",
+                data: base64Data
+              }
+            }
+          ]
+        }]
+      })
+    });
 
-    const response = await result.response;
-    return response.text();
+    if (!response.ok) {
+      throw new Error(`API 请求失败: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
   } catch (error) {
     console.error("图像分析失败:", error);
     return "";
@@ -313,29 +329,42 @@ export async function analyzeBrandTonality(brandName) {
   }
 
   try {
-    // Base URL configuration - Strip trailing /v1 causing double versioning error
-    const rawBaseUrl = process.env.GEMINI_BASE_URL;
-    const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/v1\/?$/, "") : undefined;
-    const requestOptions = baseUrl ? { baseUrl } : {};
-
-    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" }, requestOptions);
+    const API_KEY = process.env.GEMINI_ANALYSIS_API_KEY || process.env.GEMINI_API_KEY;
+    const BASE_URL = process.env.GEMINI_BASE_URL || 'https://api.apiyi.com/v1beta';
+    const MODEL = 'gemini-3-flash-preview';
 
     const prompt = `作为一位品牌策略专家，请分析品牌 "${brandName}" 的视觉调性和设计风格。
 
 请用 JSON 格式回复，包含以下字段：
 {
   "name": "品牌名称",
-    "tonality": "品牌调性描述（50-100字）",
-      "colorPalette": ["#主色1", "#主色2", "#辅助色1", "#辅助色2"],
-        "styleKeywords": ["关键词1", "关键词2", "关键词3"],
-          "designDescription": "设计风格详细描述（100-200字）"
+  "tonality": "品牌调性描述（50-100字）",
+  "colorPalette": ["#主色1", "#主色2", "#辅助色1", "#辅助色2"],
+  "styleKeywords": ["关键词1", "关键词2", "关键词3"],
+  "designDescription": "设计风格详细描述（100-200字）"
 }
 
 只返回 JSON，不要其他内容。`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const response = await fetch(`${BASE_URL}/models/${MODEL}:generateContent`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: prompt }]
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`API 请求失败: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     // 解析 JSON
     const jsonMatch = text.match(/\{[\s\S]*\}/);
