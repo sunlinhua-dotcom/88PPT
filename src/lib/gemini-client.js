@@ -248,14 +248,26 @@ ${additionalInstructions}
     // 提取生成的图像
     if (data.candidates && data.candidates[0]?.content?.parts) {
       for (const part of data.candidates[0].content.parts) {
-        if (part.inline_data) {
-          const mimeType = part.inline_data.mime_type || part.inline_data.mimeType || 'image/png';
-          return `data:${mimeType};base64,${part.inline_data.data}`;
+        // Handle both snake_case (REST standard) and camelCase (SDK/some proxies)
+        const inlineData = part.inline_data || part.inlineData;
+        if (inlineData) {
+          const mimeType = inlineData.mime_type || inlineData.mimeType || 'image/png';
+          return `data:${mimeType};base64,${inlineData.data}`;
         }
       }
     }
 
-    throw new Error("未能生成图像，API 响应中没有图像数据");
+    console.error("DEBUG: Full API Response:", JSON.stringify(data, null, 2));
+
+    // Check for safety ratings or refusals
+    if (data.promptFeedback) {
+      console.error("DEBUG: Prompt Feedback:", data.promptFeedback);
+    }
+    if (data.candidates && data.candidates[0]?.finishReason) {
+      console.error("DEBUG: Finish Reason:", data.candidates[0].finishReason);
+    }
+
+    throw new Error(`未能生成图像，API 响应中没有图像数据 (FinishReason: ${data.candidates?.[0]?.finishReason || 'Unknown'})`);
   } catch (error) {
     console.error(`页面 ${pageNumber} 生成失败: `, error);
     throw error;

@@ -71,18 +71,34 @@
 .infoRow {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     padding: 12px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.infoRow:last-of-type {
-    border-bottom: none;
 }
 
 .label {
     color: var(--text-tertiary);
     font-size: 14px;
+    padding-top: 6px; /* Align with badge */
+}
+
+.statusGroup {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.statusMessage {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-style: italic;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .value {

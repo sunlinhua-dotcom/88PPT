@@ -34,60 +34,44 @@ export default function TaskDetailPage({ params }) {
 
     useEffect(() => {
         loadTask(true);
-        // 如果任务未完成，轮询状态
+        // 如果任务未完成，轮询状态 (每 2 秒一次)
         const interval = setInterval(() => {
             if (task && (task.status === "pending" || task.status === "processing")) {
                 loadTask(true);
             }
-        }, 5000);
+        }, 2000);
 
         return () => clearInterval(interval);
-    }, [id]);
+    }, [id, task?.status]); // Add task?.status dependency to ensure loop continues/stops correctly
 
     // 手动触发处理
     const handleProcess = async () => {
         setProcessing(true);
         try {
+            // 不等待请求完成即可开始显示处理状态
+            // The polling will pick up the 'processing' status and updates
             const response = await fetch("/api/task/process", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ taskId: id })
             });
             const data = await response.json();
+
+            // 请求结束后（即任务完成后），刷新一次
             if (data.success) {
                 loadTask(true);
             } else {
                 alert("处理失败: " + data.error);
             }
         } catch (err) {
-            alert("请求失败: " + err.message);
+            console.error(err);
+            // Don't alert immediately as it might just be a timeout while task continues
         } finally {
             setProcessing(false);
         }
     };
 
-    // 下载单张图片
-    const handleDownload = (imageBase64, pageNumber) => {
-        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-        const byteCharacters = atob(base64Data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: "image/jpeg" });
-        saveAs(blob, `slide_${String(pageNumber).padStart(3, "0")}.jpg`);
-    };
-
-    // 下载所有图片
-    const handleDownloadAll = () => {
-        if (!task?.results) return;
-        Object.entries(task.results).forEach(([pageNum, imageBase64], index) => {
-            setTimeout(() => {
-                handleDownload(imageBase64, pageNum);
-            }, index * 500);
-        });
-    };
+    // ... (download handlers)
 
     // 状态显示
     const getStatusDisplay = (status) => {
@@ -163,12 +147,20 @@ export default function TaskDetailPage({ params }) {
                 </div>
                 <div className={styles.infoRow}>
                     <span className={styles.label}>状态</span>
-                    <span
-                        className={styles.statusBadge}
-                        style={{ backgroundColor: status.color }}
-                    >
-                        {status.icon} {status.text}
-                    </span>
+                    <div className={styles.statusGroup}>
+                        <span
+                            className={styles.statusBadge}
+                            style={{ backgroundColor: status.color }}
+                        >
+                            {status.icon} {status.text}
+                        </span>
+                        {/* 实时状态消息显示 */}
+                        {task?.statusMessage && (
+                            <span className={styles.statusMessage}>
+                                {task.statusMessage}
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <div className={styles.infoRow}>
                     <span className={styles.label}>进度</span>

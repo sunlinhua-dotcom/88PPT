@@ -62,7 +62,10 @@ export async function POST(request) {
             console.log(`开始处理任务 ${task.id}，共 ${task.totalPages} 页`);
 
             // 更新状态为处理中
-            updateTask(task.id, { status: TaskStatus.PROCESSING });
+            updateTask(task.id, {
+                status: TaskStatus.PROCESSING,
+                statusMessage: "准备开始处理..."
+            });
 
             let failedPages = [];
 
@@ -75,10 +78,18 @@ export async function POST(request) {
 
                 console.log(`处理任务 ${task.id} 第 ${page.pageNumber} 页`);
 
+                // 更新当前正在处理的页码信息
+                updateTask(task.id, {
+                    statusMessage: `正在生成第 ${page.pageNumber} / ${task.totalPages} 页...`
+                });
+
                 try {
                     // 分析图片内容（如果没有文本）
                     let content = page.textContent;
                     if (!content || content.trim() === "") {
+                        updateTask(task.id, {
+                            statusMessage: `正在分析第 ${page.pageNumber} 页内容...`
+                        });
                         try {
                             content = await analyzeImageContent(page.imageBase64);
                         } catch {
@@ -87,6 +98,10 @@ export async function POST(request) {
                     }
 
                     // 生成图片
+                    updateTask(task.id, {
+                        statusMessage: `正在生成第 ${page.pageNumber} 页设计...`
+                    });
+
                     const generatedImage = await generateMasterDesign({
                         pageImageBase64: page.imageBase64,
                         pageContent: content,
@@ -115,13 +130,15 @@ export async function POST(request) {
             if (completedCount === task.totalPages) {
                 updateTask(task.id, {
                     status: TaskStatus.COMPLETED,
-                    progress: 100
+                    progress: 100,
+                    statusMessage: "处理完成"
                 });
                 console.log(`任务 ${task.id} 已完成`);
             } else if (failedPages.length > 0) {
                 updateTask(task.id, {
                     status: TaskStatus.COMPLETED, // 部分完成也标记完成
-                    error: `${failedPages.length} 页生成失败（第 ${failedPages.join(', ')} 页）`
+                    error: `${failedPages.length} 页生成失败（第 ${failedPages.join(', ')} 页）`,
+                    statusMessage: "处理完成（包含失败页）"
                 });
             }
         }
