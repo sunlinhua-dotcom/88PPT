@@ -279,7 +279,7 @@ export default function ImageGallery({
                                 onClick={handleSingleRedraw}
                                 disabled={isRedrawing}
                             >
-                                {isRedrawing ? '重绘中...' : '提交'}
+                                {isRedrawing ? `重绘中... ${(redrawTimer / 10).toFixed(1)}s` : '提交'}
                             </button>
                         </div>
 
@@ -307,9 +307,14 @@ export default function ImageGallery({
                                     rows={3}
                                     disabled={isRedrawing}
                                 />
+                                {isRedrawing && (
+                                    <div style={{ marginTop: '12px', fontSize: '13px', color: '#888', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div className={styles.spinner} style={{ width: 14, height: 14 }}></div>
+                                        <span>正在连接 Gemini Pro 模型，生成可能需要 15-30 秒，请耐心等待...</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
-                        {/* Footer removed */}
                     </div>
                 </div>
             )}
