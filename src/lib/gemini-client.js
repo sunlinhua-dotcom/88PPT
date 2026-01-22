@@ -12,42 +12,70 @@ const isValidApiKey = API_KEY && API_KEY !== "your_gemini_api_key_here";
 const genAI = isValidApiKey ? new GoogleGenerativeAI(API_KEY) : null;
 
 /**
- * 大师级 PPT 重绘提示词模板
+ * 大师级 PPT 图像融合提示词模板 (Image Fusion)
  */
 const MASTER_DESIGN_PROMPT = `
 You are NANO BANANA PRO, the world's most prestigious editorial art director.
-Your goal is to redesign this slide into a magazine-quality masterpiece.
+Your mission is to FUSE the input image with magazine-quality design — NOT to completely redesign it.
 
-### CRITICAL INSTRUCTION: ASPECT RATIO & REFORMATTING
+### 🎯 CRITICAL INSTRUCTION: IMAGE FUSION (NOT REPLACEMENT)
+- **PRESERVE CORE CONTENT**: Keep ALL text, data, charts, and key visual elements from the input image.
+- **UPGRADE VISUALS**: Enhance typography, layout, colors, and add contextual imagery.
+- **FUSION STRATEGY**: Think of it as "applying a premium design filter" rather than "starting from scratch".
+
+### 📐 ASPECT RATIO & LAYOUT ADAPTATION
 - **TARGET OUTPUT**: {resolutionInstruction} (STRICT ENFORCEMENT)
-- **ACTION**: You MUST CROP, RESIZE, and RE-COMPOSE the layout to fit the target ratio exactly.
-- **FORBIDDEN**: Do NOT simply preserve the original aspect ratio. If the input is 16:9 and target is 3:4, you must totally restructure the layout for vertical alignment.
+- **ACTION**: Adapt the layout to fit the target ratio while PRESERVING content hierarchy.
+- **INTELLIGENT REFLOW**: If input is 16:9 and target is 3:4, intelligently reflow content for vertical orientation.
+- **FORBIDDEN**: Do NOT crop out important content or change aspect ratio arbitrarily.
 
-### DESIGN STANDARDS (MAGAZINE LEVEL):
-1.  **Layout & Composition**:
-    -   Surpass PowerPoint. Think "Vogue" or "Monocle".
-    -   Use **Swiss Grid Systems** and **Asymmetric Balance**.
-    -   Embrace **Negative Space**.
+### 🎨 DESIGN STANDARDS (MAGAZINE LEVEL):
+1.  **Visual Fusion Strategy**:
+    -   **RETAIN**: Text (100% accuracy), data visualizations, key graphics
+    -   **ENHANCE**: Typography (font pairing, hierarchy), colors (brand-aligned palette)
+    -   **ADD**: Contextual imagery, decorative elements, background enhancements
+    -   **TRANSFORM**: Layout from "PowerPoint-basic" to "Editorial-premium"
 
-2.  **Contextual Imagery (MANDATORY)**:
-    -   **ADD NEW IMAGES**: Generate high-quality photos/illustrations that relate to the content.
-    -   **You are an illustrator**: Do not just arrange text. Create visual impact.
+2.  **Layout & Composition**:
+    -   Apply **Swiss Grid Systems** and **Asymmetric Balance**
+    -   Use **Negative Space** strategically for visual breathing room
+    -   Think "Vogue editorial" or "Apple keynote" level quality
 
-3.  **Typography & Content**:
-    -   **LEGIBILITY**: Text must be crisp and readable.
-    -   **NO HALLUCINATIONS**: Copy text exactly from input.
+3.  **Typography & Content Accuracy**:
+    -   **CRITICAL**: Text must be PIXEL-PERFECT from the input image
+    -   **NO HALLUCINATIONS**: Do not invent or modify text content
+    -   **LEGIBILITY**: Use premium fonts with excellent readability
+    -   **HIERARCHY**: Clear visual distinction between headings, body, and captions
 
-4.  **Brand Alignment**:
-    -   Tonality: {brandTonality}
-    -   Colors: {brandColors}
+4.  **Contextual Imagery (ADDITIVE)**:
+    -   **ADD NEW IMAGES**: Generate high-quality photos/illustrations that complement the content
+    -   **CONTEXTUAL**: Images must relate directly to the slide's topic
+    -   **PLACEMENT**: Integrate seamlessly without obscuring original content
 
-### INPUT DATA:
--   **Text**: "{pageContent}"
--   **Brand**: {brandTonality}
+5.  **Brand Alignment**:
+    -   **Tonality**: {brandTonality}
+    -   **Color Palette**: {brandColors}
+    -   **Consistency**: Maintain brand identity across all visual elements
 
-### OUTPUT:
-A single flattened JPEG. **STRICTLY FOLLOW THE TARGET ASPECT RATIO.**
+### 📊 INPUT DATA:
+-   **Original Image**: Use as the primary reference (preserve its content)
+-   **Text Content**: "{pageContent}"
+-   **Brand Guidelines**: {brandTonality}
+
+### ✅ FUSION SUCCESS CRITERIA:
+1. ✓ All text from input image appears in output (100% retention)
+2. ✓ Data charts/graphs maintain accuracy
+3. ✓ Visual quality elevated to magazine/editorial standards
+4. ✓ Brand colors and tonality applied consistently
+5. ✓ Aspect ratio matches target specification exactly
+
+### 🖼️ OUTPUT:
+A single flattened JPEG image that:
+- **LOOKS**: Magazine-quality, visually stunning
+- **CONTAINS**: 100% of original content, enhanced with premium design
+- **FOLLOWS**: Target aspect ratio ({resolutionInstruction})
 `;
+
 
 /**
  * 生成重绘后的 PPT 页面图像
@@ -266,7 +294,7 @@ ${additionalInstructions}
 export async function analyzeImageContent(imageBase64) {
   const API_KEY = process.env.GEMINI_ANALYSIS_API_KEY || process.env.GEMINI_API_KEY;
   const BASE_URL = process.env.GEMINI_BASE_URL || 'https://api.apiyi.com/v1beta';
-  const MODEL = 'gemini-3-flash-preview';
+  const MODEL = 'gemini-3-pro-image-preview';
 
   if (!API_KEY) {
     return "";
@@ -331,7 +359,7 @@ export async function analyzeBrandTonality(brandName) {
   try {
     const API_KEY = process.env.GEMINI_ANALYSIS_API_KEY || process.env.GEMINI_API_KEY;
     const BASE_URL = process.env.GEMINI_BASE_URL || 'https://api.apiyi.com/v1beta';
-    const MODEL = 'gemini-3-flash-preview';
+    const MODEL = 'gemini-3-pro-image-preview';
 
     const prompt = `作为一位品牌策略专家，请分析品牌 "${brandName}" 的视觉调性和设计风格。
 

@@ -5,13 +5,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const maxDuration = 120; // 最大执行时间 120 秒
-
-const genAI = process.env.GEMINI_API_KEY
-    ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-    : null;
 
 const STYLE_ANALYSIS_PROMPT = `
 你是一位顶级设计分析专家。分析用户上传的设计参考图片，精准提取以下信息：
@@ -57,7 +52,11 @@ const STYLE_ANALYSIS_PROMPT = `
 
 export async function POST(request) {
     try {
-        if (!genAI) {
+        const API_KEY = process.env.GEMINI_ANALYSIS_API_KEY || process.env.GEMINI_API_KEY;
+        const BASE_URL = process.env.GEMINI_BASE_URL || 'https://api.apiyi.com/v1beta';
+        const MODEL = 'gemini-3-pro-image-preview';
+
+        if (!API_KEY) {
             return NextResponse.json(
                 { success: false, error: "API 密钥未配置" },
                 { status: 400 }
@@ -73,36 +72,43 @@ export async function POST(request) {
             );
         }
 
-        // Configure model
-        const rawBaseUrl = process.env.GEMINI_BASE_URL;
-        const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/v1\/?$/, "") : undefined;
-        const requestOptions = baseUrl ? { baseUrl } : {};
+        // Prepare parts for API call
+        const parts = [{ text: STYLE_ANALYSIS_PROMPT }];
 
-        const model = genAI.getGenerativeModel({
-            model: "gemini-3-flash-preview", // Use flash for faster analysis
-        }, requestOptions);
-
-        // Prepare image parts (only process first 3 images for efficiency)
-        const imageParts = files.slice(0, 3).map(file => {
-            // Handle both data URL and raw base64
+        // Add images (only process first 3 for efficiency)
+        files.slice(0, 3).forEach(file => {
             const base64Data = file.data.replace(/^data:[^;]+;base64,/, "");
             const mimeType = file.type || "image/png";
-            return {
-                inlineData: {
-                    data: base64Data,
-                    mimeType: mimeType.includes("pdf") ? "application/pdf" : mimeType,
-                },
-            };
+
+            parts.push({
+                inline_data: {
+                    mime_type: mimeType.includes("pdf") ? "application/pdf" : mimeType,
+                    data: base64Data
+                }
+            });
         });
 
-        // Call Gemini to analyze
-        const result = await model.generateContent([
-            STYLE_ANALYSIS_PROMPT,
-            ...imageParts,
-        ]);
+        // Call API
+        const response = await fetch(`${BASE_URL}/models/${MODEL}:generateContent`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: parts
+                }]
+            })
+        });
 
-        const response = await result.response;
-        const text = response.text();
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`API 请求失败 [${response.status}]: ${errorText}`);
+        }
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
         // Parse JSON response
         let styleProfile;
