@@ -282,7 +282,7 @@ ${additionalInstructions}
 export async function analyzeImageContent(imageBase64) {
   const API_KEY = process.env.GEMINI_ANALYSIS_API_KEY || process.env.GEMINI_API_KEY;
   const BASE_URL = process.env.GEMINI_BASE_URL || 'https://api.apiyi.com/v1beta';
-  const MODEL = 'gemini-3-pro-image-preview';
+  const MODEL = 'gemini-3-flash-preview';
 
   if (!API_KEY) {
     return "";
@@ -347,7 +347,7 @@ export async function analyzeBrandTonality(brandName) {
   try {
     const API_KEY = process.env.GEMINI_ANALYSIS_API_KEY || process.env.GEMINI_API_KEY;
     const BASE_URL = process.env.GEMINI_BASE_URL || 'https://api.apiyi.com/v1beta';
-    const MODEL = 'gemini-3-pro-image-preview';
+    const MODEL = 'gemini-3-flash-preview';
 
     const prompt = `作为一位品牌策略专家，请分析品牌 "${brandName}" 的视觉调性和设计风格。
 

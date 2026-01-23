@@ -54,7 +54,7 @@ export async function POST(request) {
     try {
         const API_KEY = process.env.GEMINI_ANALYSIS_API_KEY || process.env.GEMINI_API_KEY;
         const BASE_URL = process.env.GEMINI_BASE_URL || 'https://api.apiyi.com/v1beta';
-        const MODEL = 'gemini-3-pro-image-preview';
+        const MODEL = 'gemini-3-flash-preview';
 
         if (!API_KEY) {
             return NextResponse.json(
