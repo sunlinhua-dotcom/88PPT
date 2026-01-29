@@ -18,13 +18,22 @@ export default function Home() {
   const [apiAvailable, setApiAvailable] = useState(null);
   const [isVerified, setIsVerified] = useState(false);
   const [submittingTask, setSubmittingTask] = useState(false);
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
     // Check session verification
-    const verified = sessionStorage.getItem("isVerified"); // Simple session check
+    const verified = sessionStorage.getItem("isVerified");
     if (verified === "true") {
       setIsVerified(true);
     }
+
+    // Initialize User ID
+    let currentUserId = localStorage.getItem("ppt_user_id");
+    if (!currentUserId) {
+      currentUserId = crypto.randomUUID();
+      localStorage.setItem("ppt_user_id", currentUserId);
+    }
+    setUserId(currentUserId);
 
     async function checkApi() {
       try {
@@ -38,48 +47,7 @@ export default function Home() {
     checkApi();
   }, []);
 
-  // Update step based on state
-  useEffect(() => {
-    if (brandInfo) setCurrentStep(3);
-    else if (pdfData) setCurrentStep(2);
-    else setCurrentStep(1);
-  }, [pdfData, brandInfo]);
-
-  const handleVerified = () => {
-    sessionStorage.setItem("isVerified", "true");
-    setIsVerified(true);
-  };
-
-  const handleLoaded = useCallback((data) => {
-    dispatch({ type: "SET_PDF_DATA", payload: data });
-    setError(null);
-  }, [dispatch]);
-
-  const handleBrandLoaded = useCallback((brand) => {
-    dispatch({ type: "SET_BRAND_INFO", payload: brand });
-    setError(null);
-  }, [dispatch]);
-
-  const handleRatioSelect = useCallback((ratio) => {
-    dispatch({ type: "SET_ASPECT_RATIO", payload: ratio });
-  }, [dispatch]);
-
-  const handleRemoveData = useCallback(() => {
-    dispatch({ type: "RESET" });
-    setError(null);
-  }, [dispatch]);
-
-  const handleStartProcessing = () => {
-    if (!pdfData || !brandInfo) return;
-
-    if (!apiAvailable) {
-      setError("从环境配置中未检测到 Gemini API 密钥");
-      return;
-    }
-
-    // Navigate to redraw page
-    router.push("/redraw");
-  };
+  // ... existing code ...
 
   // Submit to background processing
   const handleSubmitBackground = async () => {
@@ -99,7 +67,8 @@ export default function Home() {
           pages: pdfData.pages,
           brandInfo,
           aspectRatio,
-          fileName: pdfData.fileName
+          fileName: pdfData.fileName,
+          ownerId: userId // Send User ID
         })
       });
 

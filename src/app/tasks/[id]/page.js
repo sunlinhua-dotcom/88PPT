@@ -11,6 +11,7 @@ export default function TaskDetailPage({ params }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [processing, setProcessing] = useState(false);
+    const [elapsedTime, setElapsedTime] = useState({}); // Timer for each processing page
 
     // 加载任务详情
     const loadTask = async (includeResults = false) => {
@@ -39,10 +40,30 @@ export default function TaskDetailPage({ params }) {
             if (task && (task.status === "pending" || task.status === "processing")) {
                 loadTask(true);
             }
-        }, 2000);
+        }, 1000); // Polling every 1s for smoother updates
 
         return () => clearInterval(interval);
-    }, [id, task?.status]); // Add task?.status dependency to ensure loop continues/stops correctly
+    }, [id, task?.status]);
+
+    // Client-side timer for processing pages
+    useEffect(() => {
+        if (!task?.processingPages?.length) {
+            setElapsedTime({});
+            return;
+        }
+
+        const timer = setInterval(() => {
+            setElapsedTime(prev => {
+                const next = { ...prev };
+                task.processingPages.forEach(pageNum => {
+                    next[pageNum] = (next[pageNum] || 0) + 0.1;
+                });
+                return next;
+            });
+        }, 100); // Update every 100ms for smooth seconds display
+
+        return () => clearInterval(timer);
+    }, [task?.processingPages]);
 
     // 手动触发处理
     const handleProcess = async () => {
@@ -203,34 +224,122 @@ export default function TaskDetailPage({ params }) {
                 )}
             </div>
 
-            {/* 结果预览 */}
-            {task?.results && Object.keys(task.results).length > 0 && (
-                <div className={styles.resultsSection}>
-                    <h2>生成结果</h2>
-                    <div className={styles.resultsGrid}>
-                        {Object.entries(task.results)
-                            .sort(([a], [b]) => Number(a) - Number(b))
-                            .map(([pageNum, imageBase64]) => (
-                                <div key={pageNum} className={styles.resultCard}>
-                                    <div className={styles.resultHeader}>
-                                        <span>第 {pageNum} 页</span>
+            {/* 结果预览网格 (显示所有页面状态) */}
+            <div className={styles.resultsSection}>
+                <h2>设计生成概览</h2>
+                <div className={styles.resultsGrid}>
+                    {task?.totalPages > 0 && Array.from({ length: task.totalPages }).map((_, index) => {
+                        const pageNum = index + 1;
+                        const imageBase64 = task.results?.[pageNum];
+                        const isProcessingPage = task.processingPages?.includes(pageNum);
+                        const isPending = !imageBase64 && !isProcessingPage;
+
+                        return (
+                            <div key={pageNum} className={styles.resultCard}>
+                                <div className={styles.resultHeader}>
+                                    <span>第 {pageNum} 页</span>
+                                    {imageBase64 && (
                                         <button
                                             onClick={() => handleDownload(imageBase64, pageNum)}
                                             className={styles.downloadItemBtn}
+                                            title="下载"
                                         >
                                             ⬇️
                                         </button>
-                                    </div>
-                                    <img
-                                        src={imageBase64}
-                                        alt={`Page ${pageNum}`}
-                                        className={styles.resultImage}
-                                    />
+                                    )}
                                 </div>
-                            ))}
-                    </div>
+
+                                <div className={styles.cardBody}>
+                                    {imageBase64 ? (
+                                        <div className={styles.resultImageContainer} style={{ position: 'relative', width: '100%' }}>
+                                            <img
+                                                src={imageBase64}
+                                                alt={`Page ${pageNum}`}
+                                                className={styles.resultImage}
+                                                style={{ display: 'block', width: '100%', height: 'auto' }}
+                                            />
+                                            {/* Hybrid Rendering: SVG Text Overlay */}
+                                            {(() => {
+                                                const pageData = task.pages?.find(p => p.pageNumber === pageNum);
+                                                if (pageData?.textItems && pageData?.viewport) {
+                                                    const { width, height } = pageData.viewport;
+                                                    return (
+                                                        <svg
+                                                            viewBox={`0 0 ${width} ${height}`}
+                                                            style={{
+                                                                position: 'absolute',
+                                                                top: 0,
+                                                                left: 0,
+                                                                width: '100%',
+                                                                height: '100%',
+                                                                pointerEvents: 'none',
+                                                                zIndex: 10
+                                                            }}
+                                                        >
+                                                            {pageData.textItems.map((item, idx) => {
+                                                                // PDF Transform: [sx, kx, ky, sy, tx, ty]
+                                                                const [sx, kx, ky, sy, tx, ty] = item.transform || [];
+                                                                if (tx === undefined || ty === undefined) return null;
+
+                                                                // PDF Origin is Bottom-Left. SVG is Top-Left.
+                                                                // Adjust Y: height - ty
+                                                                // Note: ty is usually baseline.
+                                                                const x = tx;
+                                                                const y = height - ty;
+
+                                                                // Font Size approx (use sx scaleX)
+                                                                const fontSize = sx;
+
+                                                                return (
+                                                                    <text
+                                                                        key={idx}
+                                                                        x={x}
+                                                                        y={y}
+                                                                        fill="#000000" // Default black text
+                                                                        fontSize={fontSize}
+                                                                        fontFamily='"Noto Sans SC", "Microsoft YaHei", sans-serif'
+                                                                        fontWeight={item.fontName?.includes('Bold') ? 'bold' : 'normal'}
+                                                                        style={{
+                                                                            // Optional: Text Shadow for better visibility on varied backgrounds
+                                                                            textShadow: '0px 0px 2px rgba(255,255,255,0.5)'
+                                                                        }}
+                                                                    >
+                                                                        {item.str}
+                                                                    </text>
+                                                                );
+                                                            })}
+                                                        </svg>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
+                                        </div>
+                                    ) : (
+                                        <div className={styles.placeholderState}>
+                                            {isProcessingPage ? (
+                                                <div className={styles.processingState}>
+                                                    <div className={styles.spinner} style={{ width: 32, height: 32, borderWidth: 3 }}></div>
+                                                    <span style={{ marginTop: 12, color: 'var(--accent-blue)', fontWeight: 500 }}>
+                                                        {elapsedTime[pageNum] ? `${elapsedTime[pageNum].toFixed(1)}s` : '准备中...'}
+                                                    </span>
+                                                    <span style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4 }}>
+                                                        Gemini Pro 绘制中
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <div className={styles.pendingState}>
+                                                    <span style={{ fontSize: 24, opacity: 0.3 }}>⏳</span>
+                                                    <span style={{ color: 'var(--text-tertiary)', fontSize: 13, marginTop: 8 }}>等待处理</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
-            )}
+            </div>
         </main>
     );
 }

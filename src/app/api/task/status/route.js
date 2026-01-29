@@ -12,10 +12,11 @@ export async function GET(request) {
         const taskId = searchParams.get("id");
         const includeResults = searchParams.get("results") === "true";
         const listAll = searchParams.get("list") === "true";
+        const userId = searchParams.get("userId"); // Extract User ID
 
-        // 列出所有任务
+        // 列出所有任务 (Filtered by User)
         if (listAll) {
-            const tasks = listTasks(50);
+            const tasks = listTasks(50, userId); // Pass userId for filtering
             return NextResponse.json({
                 success: true,
                 tasks

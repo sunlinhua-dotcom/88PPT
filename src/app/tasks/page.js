@@ -12,7 +12,10 @@ export default function TasksPage() {
     // 加载任务列表
     const loadTasks = async () => {
         try {
-            const response = await fetch("/api/task/status?list=true");
+            const userId = localStorage.getItem("ppt_user_id");
+            if (!userId) return; // Should have one if came from home, or will be generated on home
+
+            const response = await fetch(`/api/task/status?list=true&userId=${userId}`);
             const data = await response.json();
             if (data.success) {
                 setTasks(data.tasks || []);

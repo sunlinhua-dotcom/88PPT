@@ -32,6 +32,7 @@ export const TaskStatus = {
  * @param {Object} data.brandInfo - 品牌信息
  * @param {string} data.aspectRatio - 目标比例
  * @param {string} data.fileName - 原始文件名
+ * @param {string} data.ownerId - 用户 ID (用于数据隔离)
  * @returns {Object} 创建的任务信息
  */
 export function createTask(data) {
@@ -42,6 +43,7 @@ export function createTask(data) {
 
     const task = {
         id: taskId,
+        ownerId: data.ownerId || 'anonymous', // Record owner
         status: TaskStatus.PENDING,
         createdAt: now,
         updatedAt: now,
@@ -53,6 +55,7 @@ export function createTask(data) {
         aspectRatio: data.aspectRatio || '16:9',
         pages: data.pages || [],
         results: {},  // pageNumber -> generatedImageBase64
+        processingPages: [], // Pages currently being processed
         error: null
     };
 
@@ -99,6 +102,7 @@ export function getTaskStatus(taskId) {
             brandName: task.brandInfo?.name || 'Unknown',
             aspectRatio: task.aspectRatio,
             completedCount: Object.keys(task.results).length,
+            processingPages: task.processingPages || [],
             error: task.error
         };
     } catch (error) {
@@ -172,6 +176,8 @@ export function addTaskResult(taskId, pageNumber, imageBase64) {
 
     task.results[pageNumber] = imageBase64;
     task.currentPage = pageNumber;
+    // Remove from processing list
+    task.processingPages = (task.processingPages || []).filter(p => p !== pageNumber);
     task.progress = Math.round((Object.keys(task.results).length / task.totalPages) * 100);
     task.updatedAt = new Date().toISOString();
 
@@ -208,9 +214,10 @@ export function getPendingTasks() {
 /**
  * 获取所有任务列表（用于任务列表页面）
  * @param {number} limit - 最大返回数量
+ * @param {string} ownerId - 用户 ID (可选，若提供则只返回该用户的任务)
  * @returns {Array} 任务列表（简要信息）
  */
-export function listTasks(limit = 50) {
+export function listTasks(limit = 50, ownerId = null) {
     ensureTaskDir();
 
     const files = fs.readdirSync(TASK_DIR).filter(f => f.endsWith('.json'));
@@ -219,6 +226,12 @@ export function listTasks(limit = 50) {
     for (const file of files) {
         try {
             const task = JSON.parse(fs.readFileSync(path.join(TASK_DIR, file), 'utf-8'));
+
+            // Filter by owner if provided
+            if (ownerId && task.ownerId && task.ownerId !== ownerId) {
+                continue;
+            }
+
             tasks.push({
                 id: task.id,
                 status: task.status,
@@ -228,7 +241,10 @@ export function listTasks(limit = 50) {
                 totalPages: task.totalPages,
                 fileName: task.fileName,
                 brandName: task.brandInfo?.name || 'Unknown',
-                completedCount: Object.keys(task.results).length
+                fileName: task.fileName,
+                brandName: task.brandInfo?.name || 'Unknown',
+                completedCount: Object.keys(task.results).length,
+                processingPages: task.processingPages || []
             });
         } catch (error) {
             console.error(`Error reading task file ${file}:`, error);

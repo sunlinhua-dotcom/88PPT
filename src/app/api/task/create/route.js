@@ -11,7 +11,7 @@ export const maxDuration = 10; // 快速响应
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { pages, brandInfo, aspectRatio, fileName } = body;
+        const { pages, brandInfo, aspectRatio, fileName, ownerId } = body;
 
         // 验证必要参数
         if (!pages || !Array.isArray(pages) || pages.length === 0) {
@@ -33,7 +33,8 @@ export async function POST(request) {
             pages,
             brandInfo,
             aspectRatio: aspectRatio || "16:9",
-            fileName: fileName || "untitled.pdf"
+            fileName: fileName || "untitled.pdf",
+            ownerId // Pass ownerId
         });
 
         return NextResponse.json({

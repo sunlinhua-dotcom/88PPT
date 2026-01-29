@@ -102,12 +102,28 @@ export default function UniversalUploader({ onLoaded, disabled }) {
 
             const imageBase64 = canvas.toDataURL("image/jpeg", 0.8);
             const textContent = await page.getTextContent();
-            const pageText = textContent.items.map((item) => item.str).join(" ");
+
+            // Extract detailed text items for Hybrid Rendering
+            const textItems = textContent.items.map(item => ({
+                str: item.str,
+                // transform: [scaleX, skewY, skewX, scaleY, tx, ty]
+                // We need tx, ty for position, and scaleY for font size approx
+                transform: item.transform,
+                width: item.width,
+                height: item.height,
+                fontName: item.fontName,
+                hasEOL: item.hasEOL
+            }));
+
+            // Also keep the full text for legacy uses if any
+            const pageText = textItems.map((item) => item.str).join(" ");
 
             pages.push({
                 pageNumber: pageNum,
                 imageBase64,
                 textContent: pageText,
+                textItems, // Store the detailed text layout
+                viewport: { width: viewport.width, height: viewport.height } // Start storing viewport for coordinate calc
             });
 
             setProgress(Math.round((pageNum / totalPages) * 100));
