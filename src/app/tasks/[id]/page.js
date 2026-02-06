@@ -251,69 +251,11 @@ export default function TaskDetailPage({ params }) {
 
                                 <div className={styles.cardBody}>
                                     {imageBase64 ? (
-                                        <div className={styles.resultImageContainer} style={{ position: 'relative', width: '100%' }}>
-                                            <img
-                                                src={imageBase64}
-                                                alt={`Page ${pageNum}`}
-                                                className={styles.resultImage}
-                                                style={{ display: 'block', width: '100%', height: 'auto' }}
-                                            />
-                                            {/* Hybrid Rendering: SVG Text Overlay */}
-                                            {(() => {
-                                                const pageData = task.pages?.find(p => p.pageNumber === pageNum);
-                                                if (pageData?.textItems && pageData?.viewport) {
-                                                    const { width, height } = pageData.viewport;
-                                                    return (
-                                                        <svg
-                                                            viewBox={`0 0 ${width} ${height}`}
-                                                            style={{
-                                                                position: 'absolute',
-                                                                top: 0,
-                                                                left: 0,
-                                                                width: '100%',
-                                                                height: '100%',
-                                                                pointerEvents: 'none',
-                                                                zIndex: 10
-                                                            }}
-                                                        >
-                                                            {pageData.textItems.map((item, idx) => {
-                                                                // PDF Transform: [sx, kx, ky, sy, tx, ty]
-                                                                const [sx, kx, ky, sy, tx, ty] = item.transform || [];
-                                                                if (tx === undefined || ty === undefined) return null;
-
-                                                                // PDF Origin is Bottom-Left. SVG is Top-Left.
-                                                                // Adjust Y: height - ty
-                                                                // Note: ty is usually baseline.
-                                                                const x = tx;
-                                                                const y = height - ty;
-
-                                                                // Font Size approx (use sx scaleX)
-                                                                const fontSize = sx;
-
-                                                                return (
-                                                                    <text
-                                                                        key={idx}
-                                                                        x={x}
-                                                                        y={y}
-                                                                        fill="#000000" // Default black text
-                                                                        fontSize={fontSize}
-                                                                        fontFamily='"Noto Sans SC", "Microsoft YaHei", sans-serif'
-                                                                        fontWeight={item.fontName?.includes('Bold') ? 'bold' : 'normal'}
-                                                                        style={{
-                                                                            // Optional: Text Shadow for better visibility on varied backgrounds
-                                                                            textShadow: '0px 0px 2px rgba(255,255,255,0.5)'
-                                                                        }}
-                                                                    >
-                                                                        {item.str}
-                                                                    </text>
-                                                                );
-                                                            })}
-                                                        </svg>
-                                                    );
-                                                }
-                                                return null;
-                                            })()}
-                                        </div>
+                                        <img
+                                            src={imageBase64}
+                                            alt={`Page ${pageNum}`}
+                                            className={styles.resultImage}
+                                        />
                                     ) : (
                                         <div className={styles.placeholderState}>
                                             {isProcessingPage ? (

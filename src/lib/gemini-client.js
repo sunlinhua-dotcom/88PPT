@@ -24,35 +24,28 @@ Your goal is to REDESIGN this slide into a magazine-quality masterpiece.
 - **ACTION**: You MUST CROP, RESIZE, and RE-COMPOSE the layout to fit the target ratio exactly.
 - **FORBIDDEN**: Do NOT simply preserve the original aspect ratio or layout if it doesn't fit the target.
 
-### 🚫 CRITICAL: NO TEXT RENDERED (STRICT)
-- You are generating a **Background Asset**.
-- **DO NOT** render any text, characters, or letters on the image.
-- **REMOVE** all text from the original input. (The text will be overlayed by code).
-- **KEEP** the exact visual containers (boxes, shapes) where text should be, but leave them BLANK.
-- **Goal**: A clean, high-quality background ready for typesetting.
-
-### 🎨 DESIGN STANDARDS (MAGAZINE LEVEL - 2K RESOLUTION):
+### 🎨 DESIGN STANDARDS (MAGAZINE LEVEL):
 1.  **Layout & Composition**:
     -   Surpass PowerPoint. Think "Vogue", "Monocle" or "Apple Keynote".
     -   Use **Swiss Grid Systems** and **Asymmetric Balance**.
     -   Embrace **Negative Space** for a premium feel.
-    -   **Strict Layout Preservation**: You MUST maintain the relative positions of content blocks so the overlay text aligns correctly.
 
 2.  **Contextual Imagery (MANDATORY)**:
     -   **ADD NEW IMAGES**: Generate high-quality photos/illustrations that relate to the content.
     -   **You are an illustrator**: Do not just arrange text. Create visual impact.
-    -   **Visuals over Text**: Prioritize visual storytelling (images, shapes, colors).
+    -   **Visuals over Text**: Prioritize visual storytelling over dense text blocks.
 
-3.  **Typography & Content (DO NOT RENDER TEXT)**:
-    -   **NO TEXT**: Do not render any readable text.
-    -   **Hierarchy**: Use visual weight (shapes, colors) to suggest where headlines vs body text go.
+3.  **Typography & Content**:
+    -   **LEGIBILITY**: Text must be crisp and readable.
+    -   **NO HALLUCINATIONS**: Copy text exactly from input.
+    -   **Hierarchy**: Create specific contrast between headlines and body text.
 
 4.  **Brand Alignment**:
     -   Tonality: {brandTonality}
     -   Colors: {brandColors}
 
 ### 📊 INPUT DATA:
--   **Text Content**: "{pageContent}" (Reference only for context - DO NOT RENDER)
+-   **Text Content**: "{pageContent}"
 -   **Brand Guidelines**: {brandTonality}
 
 ### 🖼️ OUTPUT:
@@ -129,7 +122,7 @@ export async function generateMasterDesign({
   // 获取 API 配置
   const API_KEY = process.env.GEMINI_API_KEY;
   const BASE_URL = process.env.GEMINI_BASE_URL || 'https://api.apiyi.com/v1beta';
-  const MODEL = 'gemini-3-pro-image-preview';
+  const MODEL = 'gemini-3-pro-image-preview-2k';
 
   if (!API_KEY) {
     throw new Error("请先在 .env.local 文件中配置有效的 GEMINI_API_KEY");
@@ -137,10 +130,9 @@ export async function generateMasterDesign({
 
   try {
     // Define Aspect Ratio Instructions with EXPLICIT dimensions
-    // Define Aspect Ratio Instructions with EXPLICIT dimensions for 2K/High Res
     const ratioInstructions = {
-      "16:9": { w: 2560, h: 1440, orient: "LANDSCAPE", desc: "wider than tall", apiRatio: "16:9" }, // Request 2K
-      "4:3": { w: 1920, h: 1440, orient: "LANDSCAPE", desc: "wider than tall", apiRatio: "4:3" },
+      "16:9": { w: 1920, h: 1080, orient: "LANDSCAPE", desc: "wider than tall", apiRatio: "16:9" },
+      "4:3": { w: 1440, h: 1080, orient: "LANDSCAPE", desc: "wider than tall", apiRatio: "4:3" },
       "9:16": { w: 1080, h: 1920, orient: "PORTRAIT", desc: "taller than wide", apiRatio: "9:16" },
       "3:4": { w: 1080, h: 1440, orient: "PORTRAIT", desc: "taller than wide", apiRatio: "3:4" },
       "1:1": { w: 1080, h: 1080, orient: "SQUARE", desc: "equal width and height", apiRatio: "1:1" }
@@ -155,12 +147,11 @@ export async function generateMasterDesign({
 OUTPUT: ${spec.w}x${spec.h} pixels (${spec.orient})
 ASPECT RATIO: ${aspectRatio}
 
-⚠️ OUTPUT MUST BE ${spec.w} pixels wide and ${spec.h} pixels tall (High Definition).
+⚠️ OUTPUT MUST BE ${spec.w} pixels wide and ${spec.h} pixels tall.
 ⚠️ OUTPUT MUST BE ${spec.orient} orientation (${spec.desc}).
 ⚠️ DO NOT output a square image unless specified.
 ⚠️ IGNORE the input image dimensions - it is only for content reference.
 ⚠️ Redesign the content to fit ${aspectRatio} format.
-⚠️ CRITICAL: DO NOT RENDER ANY TEXT. LEAVE SPACE FOR TEXT OVERLAY.
 #####################################################################
     `.trim();
 
@@ -241,7 +232,7 @@ ${additionalInstructions}
           responseModalities: ["IMAGE"],
           imageConfig: {
             aspectRatio: spec.apiRatio,
-            // imageSize: "1K" // Removed to allow model max resolution (potentially >1K for Pro models)
+            imageSize: "1K"
           }
         }
       })

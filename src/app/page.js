@@ -99,8 +99,7 @@ export default function Home() {
           pages: pdfData.pages,
           brandInfo,
           aspectRatio,
-          fileName: pdfData.fileName,
-          ownerId: userId // Send User ID
+          fileName: pdfData.fileName
         })
       });
 
