@@ -1,0 +1,378 @@
+/* New Role Page Styles */
+
+.container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #212121;
+    color: #ececec;
+    font-family: 'Söhne', 'ui-sans-serif', 'system-ui', sans-serif;
+}
+
+.content {
+    flex: 1;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 32px 24px;
+    width: 100%;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.backBtn {
+    padding: 8px 12px;
+    background: #2f2f2f;
+    border: 1px solid #424242;
+    border-radius: 8px;
+    color: #ececec;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.15s;
+}
+
+.backBtn:hover {
+    background: #3a3a3a;
+    border-color: #10a37f;
+}
+
+.header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.description {
+    color: #9b9b9b;
+    font-size: 14px;
+    margin-bottom: 24px;
+}
+
+/* Mode Switch */
+.modeSwitch {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    padding: 4px;
+    background: #2f2f2f;
+    border-radius: 12px;
+}
+
+.modeBtn {
+    flex: 1;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: #9b9b9b;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.modeBtn:hover {
+    color: #ececec;
+}
+
+.modeBtn.active {
+    background: #10a37f;
+    color: #fff;
+    font-weight: 500;
+}
+
+/* Icon Input */
+.iconInput {
+    width: 60px !important;
+    text-align: center;
+    font-size: 24px !important;
+}
+
+/* Workflow Section */
+.workflowSection {
+    margin-top: 32px;
+    background: #2f2f2f;
+    border: 1px solid #424242;
+    border-radius: 16px;
+    padding: 24px;
+}
+
+.workflowSection h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: #10a37f;
+}
+
+.workflowHint {
+    color: #9b9b9b;
+    font-size: 13px;
+    margin: 0 0 20px 0;
+}
+
+.workflowSection>.saveBtn {
+    margin-top: 24px;
+    width: 100%;
+}
+
+/* Form */
+.form {
+    background: #2f2f2f;
+    border: 1px solid #424242;
+    border-radius: 16px;
+    padding: 24px;
+}
+
+.field {
+    margin-bottom: 20px;
+}
+
+.field label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #ececec;
+}
+
+.field input {
+    width: 100%;
+    padding: 12px 16px;
+    background: #212121;
+    border: 1px solid #424242;
+    border-radius: 8px;
+    color: #ececec;
+    font-size: 14px;
+    transition: border-color 0.15s;
+}
+
+.field input:focus {
+    outline: none;
+    border-color: #10a37f;
+}
+
+.field input::placeholder {
+    color: #6b6b6b;
+}
+
+.error {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid #ef4444;
+    border-radius: 8px;
+    color: #ef4444;
+    font-size: 14px;
+}
+
+.generateBtn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #10a37f 0%, #0d8f6f 100%);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.generateBtn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 163, 127, 0.3);
+}
+
+.generateBtn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Preview */
+.preview {
+    margin-top: 32px;
+}
+
+.preview h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.previewCard {
+    background: #2f2f2f;
+    border: 1px solid #424242;
+    border-radius: 16px;
+    padding: 24px;
+}
+
+.previewHeader {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #424242;
+}
+
+.previewIcon {
+    font-size: 40px;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #212121;
+    border-radius: 12px;
+}
+
+.previewHeader h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+}
+
+.previewHeader p {
+    font-size: 13px;
+    color: #9b9b9b;
+    margin: 0;
+}
+
+.previewSection {
+    margin-bottom: 20px;
+}
+
+.previewSection:last-child {
+    margin-bottom: 0;
+}
+
+.previewSection h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: #10a37f;
+}
+
+.previewSection p {
+    font-size: 14px;
+    color: #ececec;
+    margin: 0;
+}
+
+.promptPreview {
+    background: #212121;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 12px;
+    color: #9b9b9b;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+    margin: 0;
+}
+
+.workflow {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.phase {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.phaseNum {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #10a37f;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.phase strong {
+    font-size: 14px;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.phase p {
+    font-size: 12px;
+    color: #9b9b9b;
+    margin: 0;
+}
+
+/* Actions */
+.actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.regenerateBtn {
+    flex: 1;
+    padding: 14px;
+    background: transparent;
+    border: 1px solid #424242;
+    border-radius: 10px;
+    color: #ececec;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.regenerateBtn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: #10a37f;
+}
+
+.saveBtn {
+    flex: 2;
+    padding: 14px;
+    background: linear-gradient(135deg, #10a37f 0%, #0d8f6f 100%);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.saveBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 163, 127, 0.3);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .content {
+        padding: 20px 16px;
+    }
+
+    .form,
+    .previewCard {
+        padding: 16px;
+    }
+
+    .actions {
+        flex-direction: column;
+    }
+
+    .regenerateBtn,
+    .saveBtn {
+        flex: none;
+    }
+}

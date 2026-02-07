@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation"; // New
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAppContext } from "./context/AppContext"; // New
 import UniversalUploader from "./components/UniversalUploader";
 import BrandInput from "./components/BrandInput";
@@ -156,17 +157,30 @@ export default function Home() {
           </div>
           <span className="logo-text">PPT AI Pro</span>
         </div>
-        <a href="/tasks" style={{
-          color: 'var(--text-secondary)',
-          textDecoration: 'none',
-          fontSize: '14px',
-          padding: '8px 16px',
-          borderRadius: '8px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          transition: 'all 0.2s'
-        }}>
-          📋 任务列表
-        </a>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Link href="/write" style={{
+            color: 'var(--text-secondary)',
+            textDecoration: 'none',
+            fontSize: '14px',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            transition: 'all 0.2s'
+          }}>
+            ✍️ 撰写
+          </Link>
+          <Link href="/tasks" style={{
+            color: 'var(--text-secondary)',
+            textDecoration: 'none',
+            fontSize: '14px',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            transition: 'all 0.2s'
+          }}>
+            📋 任务列表
+          </Link>
+        </div>
       </header>
 
       {/* Hero */}
