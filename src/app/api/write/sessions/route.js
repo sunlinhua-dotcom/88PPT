@@ -1,103 +1,74 @@
 import { NextResponse } from "next/server";
+import { getSessionsCollection } from "../../../../lib/mongodb";
 
 /**
- * 会话列表 API
- * GET: 获取所有会话
- * POST: 创建新会话
+ * 会话管理 API - MongoDB 版
  */
 
-// 内存存储（生产环境应使用数据库）
-let sessions = new Map();
-
-export async function GET(request) {
+// GET: 获取会话列表
+export async function GET() {
     try {
-        const { searchParams } = new URL(request.url);
-        const userId = searchParams.get("userId") || "default";
+        const sessions = await getSessionsCollection();
+        const list = await sessions
+            .find({}, { projection: { messages: { $slice: -1 }, sessionId: 1, roleId: 1, createdAt: 1, updatedAt: 1 } })
+            .sort({ updatedAt: -1 })
+            .limit(50)
+            .toArray();
 
-        // 从内存获取会话列表
-        const userSessions = [];
-        sessions.forEach((session, id) => {
-            if (session.userId === userId) {
-                userSessions.push({
-                    id: session.id,
-                    title: session.title || "未命名对话",
-                    createdAt: session.createdAt,
-                    updatedAt: session.updatedAt,
-                    messageCount: session.messages?.length || 0
-                });
-            }
-        });
+        // 格式化返回
+        const formatted = list.map(s => ({
+            sessionId: s.sessionId,
+            roleId: s.roleId || "ecd",
+            lastMessage: s.messages?.[0]?.content?.substring(0, 80) || "",
+            messageCount: 0, // 不查完整 messages 以节省流量
+            createdAt: s.createdAt,
+            updatedAt: s.updatedAt
+        }));
 
-        // 按更新时间倒序排列
-        userSessions.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-
-        return NextResponse.json({
-            success: true,
-            sessions: userSessions
-        });
+        return NextResponse.json({ sessions: formatted });
     } catch (error) {
         console.error("获取会话列表失败:", error);
-        return NextResponse.json(
-            { success: false, error: "获取会话列表失败" },
-            { status: 500 }
-        );
+        return NextResponse.json({ sessions: [] });
     }
 }
 
+// POST: 创建新会话
 export async function POST(request) {
     try {
-        const body = await request.json();
-        const { sessionId, title, messages, outline, userId = "default" } = body;
+        const { sessionId, roleId, systemPrompt, greeting } = await request.json();
 
         if (!sessionId) {
-            return NextResponse.json(
-                { success: false, error: "sessionId 是必需的" },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "缺少 sessionId" }, { status: 400 });
         }
 
+        const sessions = await getSessionsCollection();
         const now = new Date().toISOString();
-        const existingSession = sessions.get(sessionId);
 
-        const session = {
-            id: sessionId,
-            userId,
-            title: title || generateTitle(messages) || "未命名对话",
-            messages: messages || [],
-            outline: outline || { title: "", sections: [] },
-            createdAt: existingSession?.createdAt || now,
-            updatedAt: now
-        };
+        // 初始消息（AI 问候语）
+        const initialMessages = greeting ? [{
+            role: "assistant",
+            content: greeting,
+            timestamp: now
+        }] : [];
 
-        sessions.set(sessionId, session);
-
-        return NextResponse.json({
-            success: true,
-            session: {
-                id: session.id,
-                title: session.title,
-                createdAt: session.createdAt,
-                updatedAt: session.updatedAt
-            }
-        });
-    } catch (error) {
-        console.error("保存会话失败:", error);
-        return NextResponse.json(
-            { success: false, error: "保存会话失败" },
-            { status: 500 }
+        await sessions.updateOne(
+            { sessionId },
+            {
+                $setOnInsert: {
+                    sessionId,
+                    roleId: roleId || "ecd",
+                    messages: initialMessages,
+                    outline: { title: "", sections: [] },
+                    createdAt: now
+                },
+                $set: { updatedAt: now }
+            },
+            { upsert: true }
         );
+
+        return NextResponse.json({ success: true, sessionId });
+    } catch (error) {
+        console.error("创建会话失败:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
-}
-
-// 从消息中生成标题
-function generateTitle(messages) {
-    if (!messages || messages.length === 0) return null;
-
-    // 找到第一条用户消息
-    const firstUserMessage = messages.find(m => m.role === "user");
-    if (!firstUserMessage) return null;
-
-    // 截取前 30 个字符作为标题
-    const content = firstUserMessage.content || "";
-    return content.slice(0, 30) + (content.length > 30 ? "..." : "");
 }

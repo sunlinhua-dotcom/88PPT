@@ -42,8 +42,8 @@ export default function WritePage() {
     const fileInputRef = useRef(null);
     const dropZoneRef = useRef(null);
 
-    // 初始化新会话
-    const initNewSession = useCallback(() => {
+    // 初始化新会话（同时在 MongoDB 创建记录）
+    const initNewSession = useCallback(async () => {
         const newId = uuidv4();
         setSessionId(newId);
         const role = currentRole || getActiveRole();
@@ -59,6 +59,21 @@ export default function WritePage() {
             }
         ]);
         setOutline({ title: "", sections: [] });
+
+        // 在 MongoDB 创建会话记录
+        try {
+            await fetch("/api/write/sessions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    sessionId: newId,
+                    roleId: role.id,
+                    greeting
+                })
+            });
+        } catch (e) {
+            console.warn("MongoDB 创建会话失败（不影响使用）:", e);
+        }
     }, [currentRole]);
 
     // 初始化会话（仅在首次加载执行）
@@ -67,23 +82,44 @@ export default function WritePage() {
         if (hasInitialized.current) return;
         hasInitialized.current = true;
 
-        // 尝试恢复上次会话
+        // 尝试从 localStorage 获取上次 sessionId，然后从 MongoDB 恢复
         const savedSession = localStorage.getItem("ppt_write_session");
         if (savedSession) {
             try {
                 const parsed = JSON.parse(savedSession);
-                setSessionId(parsed.sessionId);
-                setMessages(parsed.messages || []);
-                setOutline(parsed.outline || { title: "", sections: [] });
+                const sid = parsed.sessionId;
 
-                // 恢复会话时加载对应角色
+                // 恢复角色（本地）
                 if (parsed.roleId) {
                     const allRoles = getAllRoles();
                     const savedRole = allRoles.find(r => r.id === parsed.roleId);
-                    if (savedRole) {
-                        setCurrentRole(savedRole);
-                    }
+                    if (savedRole) setCurrentRole(savedRole);
                 }
+
+                // 从 MongoDB 恢复完整历史
+                fetch(`/api/write/sessions/${sid}`)
+                    .then(res => res.ok ? res.json() : null)
+                    .then(data => {
+                        if (data && data.messages && data.messages.length > 0) {
+                            setSessionId(sid);
+                            setMessages(data.messages.map(m => ({
+                                id: uuidv4(),
+                                ...m
+                            })));
+                            setOutline(data.outline || { title: "", sections: [] });
+                        } else {
+                            // MongoDB 没有数据，用 localStorage 兜底
+                            setSessionId(sid);
+                            setMessages(parsed.messages || []);
+                            setOutline(parsed.outline || { title: "", sections: [] });
+                        }
+                    })
+                    .catch(() => {
+                        // MongoDB 不可用，用 localStorage 兜底
+                        setSessionId(sid);
+                        setMessages(parsed.messages || []);
+                        setOutline(parsed.outline || { title: "", sections: [] });
+                    });
             } catch (e) {
                 console.error("恢复会话失败:", e);
                 initNewSession();
@@ -234,10 +270,7 @@ export default function WritePage() {
                 body: JSON.stringify({
                     sessionId,
                     message: messageText,
-                    // 传递完整对话历史（排除正在流式传输的占位消息和错误消息）
-                    history: messages
-                        .filter(m => !m.isStreaming && !m.isError && m.content)
-                        .map(m => ({ role: m.role, content: m.content })),
+                    // 历史由 MongoDB 管理，前端不再传递
                     attachments: currentAttachments,
                     outline,
                     roleId: currentRole?.id || "ecd",

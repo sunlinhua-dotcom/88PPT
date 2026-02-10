@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { ECD_ROLE } from "../../../../lib/roles";
+import { getSessionsCollection } from "../../../../lib/mongodb";
 
 /**
  * PPT 撰写助手 - 流式对话 API
  * 使用 SSE (Server-Sent Events) 实现流式输出
- * 支持动态角色切换
+ * 支持动态角色切换 + MongoDB 持久化对话历史
  */
 export async function POST(request) {
     const API_KEY = process.env.GEMINI_WRITE_API_KEY || process.env.GEMINI_API_KEY;
@@ -16,29 +17,38 @@ export async function POST(request) {
     }
 
     try {
-        const { sessionId, message, history, attachments, outline, roleId, systemPrompt: clientPrompt } = await request.json();
+        const { sessionId, message, attachments, outline, roleId, systemPrompt: clientPrompt } = await request.json();
 
         // 优先使用前端传来的 systemPrompt（支持自定义角色）
-        // 服务端无法访问 localStorage，因此自定义角色的 Prompt 必须由前端传递
         let systemPrompt = clientPrompt || ECD_ROLE.systemPrompt;
 
         // 追加当前大纲状态
         systemPrompt += `\n\n当前大纲状态：\n${JSON.stringify(outline, null, 2)}\n\n请根据用户的反馈继续推进工作。`;
 
-        // 构建多轮对话历史（Gemini contents 格式）
+        // === 从 MongoDB 获取对话历史 ===
+        let historyMessages = [];
+        let sessions;
+        try {
+            sessions = await getSessionsCollection();
+            const session = await sessions.findOne({ sessionId });
+            if (session && session.messages) {
+                // 滑动窗口：只取最近 40 条消息
+                historyMessages = session.messages.slice(-40);
+            }
+        } catch (dbError) {
+            console.warn("MongoDB 查询失败，使用无历史模式:", dbError.message);
+        }
+
+        // 构建 Gemini 多轮对话 contents
         const contents = [];
 
-        // 1. 添加历史对话（滑动窗口：只保留最近 40 条消息，避免请求过大）
-        if (history && history.length > 0) {
-            const recentHistory = history.slice(-40);
-            for (const msg of recentHistory) {
-                // Gemini API 使用 "user" 和 "model" 角色
-                const role = msg.role === "assistant" ? "model" : "user";
-                contents.push({
-                    role,
-                    parts: [{ text: msg.content }]
-                });
-            }
+        // 1. 添加历史对话
+        for (const msg of historyMessages) {
+            const role = msg.role === "assistant" ? "model" : "user";
+            contents.push({
+                role,
+                parts: [{ text: msg.content }]
+            });
         }
 
         // 2. 添加当前用户消息（包含附件）
@@ -47,7 +57,6 @@ export async function POST(request) {
             currentParts.push({ text: message });
         }
 
-        // 添加附件（图片/PDF）
         if (attachments && attachments.length > 0) {
             for (const attachment of attachments) {
                 if (attachment.data) {
@@ -107,41 +116,68 @@ export async function POST(request) {
         // 移除大纲标记后的纯文本
         const cleanText = textContent.replace(/```outline\n[\s\S]*?\n```/g, "").trim();
 
+        // === 将用户消息和 AI 回复保存到 MongoDB ===
+        try {
+            if (sessions) {
+                const now = new Date().toISOString();
+                const userMsg = {
+                    role: "user",
+                    content: message || "",
+                    timestamp: now
+                };
+                const aiMsg = {
+                    role: "assistant",
+                    content: cleanText,
+                    timestamp: now
+                };
+
+                await sessions.updateOne(
+                    { sessionId },
+                    {
+                        $push: { messages: { $each: [userMsg, aiMsg] } },
+                        $set: {
+                            outline: outlineUpdate || outline,
+                            roleId: roleId || "ecd",
+                            updatedAt: now
+                        },
+                        $setOnInsert: { createdAt: now }
+                    },
+                    { upsert: true }
+                );
+            }
+        } catch (dbError) {
+            console.error("MongoDB 保存失败:", dbError.message);
+            // 不影响返回结果
+        }
+
         // 创建 SSE 响应流
         const encoder = new TextEncoder();
         const stream = new ReadableStream({
             async start(controller) {
-                // 模拟流式输出（逐字符发送）
                 const chars = cleanText.split("");
                 let buffer = "";
 
                 for (let i = 0; i < chars.length; i++) {
                     buffer += chars[i];
 
-                    // 每 3 个字符或遇到标点时发送
                     if (buffer.length >= 3 || /[。，！？\n]/.test(chars[i])) {
                         const chunk = `data: ${JSON.stringify({ content: buffer })}\n\n`;
                         controller.enqueue(encoder.encode(chunk));
                         buffer = "";
-
-                        // 小延迟模拟打字效果
                         await new Promise(r => setTimeout(r, 20));
                     }
                 }
 
-                // 发送剩余内容
                 if (buffer) {
                     const chunk = `data: ${JSON.stringify({ content: buffer })}\n\n`;
                     controller.enqueue(encoder.encode(chunk));
                 }
 
-                // 发送大纲更新（如果有）
                 if (outlineUpdate) {
                     const outlineChunk = `data: ${JSON.stringify({ outline: outlineUpdate })}\n\n`;
                     controller.enqueue(encoder.encode(outlineChunk));
                 }
 
-                // 结束标记
                 controller.enqueue(encoder.encode("data: [DONE]\n\n"));
                 controller.close();
             }
