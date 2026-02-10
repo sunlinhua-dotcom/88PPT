@@ -16,7 +16,7 @@ export async function POST(request) {
     }
 
     try {
-        const { sessionId, message, attachments, outline, roleId, systemPrompt: clientPrompt } = await request.json();
+        const { sessionId, message, history, attachments, outline, roleId, systemPrompt: clientPrompt } = await request.json();
 
         // 优先使用前端传来的 systemPrompt（支持自定义角色）
         // 服务端无法访问 localStorage，因此自定义角色的 Prompt 必须由前端传递
@@ -25,12 +25,25 @@ export async function POST(request) {
         // 追加当前大纲状态
         systemPrompt += `\n\n当前大纲状态：\n${JSON.stringify(outline, null, 2)}\n\n请根据用户的反馈继续推进工作。`;
 
-        // 构建消息内容
-        const parts = [];
+        // 构建多轮对话历史（Gemini contents 格式）
+        const contents = [];
 
-        // 添加文本消息
+        // 1. 添加历史对话（如果有）
+        if (history && history.length > 0) {
+            for (const msg of history) {
+                // Gemini API 使用 "user" 和 "model" 角色
+                const role = msg.role === "assistant" ? "model" : "user";
+                contents.push({
+                    role,
+                    parts: [{ text: msg.content }]
+                });
+            }
+        }
+
+        // 2. 添加当前用户消息（包含附件）
+        const currentParts = [];
         if (message) {
-            parts.push({ text: message });
+            currentParts.push({ text: message });
         }
 
         // 添加附件（图片/PDF）
@@ -39,7 +52,7 @@ export async function POST(request) {
                 if (attachment.data) {
                     const base64Data = attachment.data.replace(/^data:[^;]+;base64,/, "");
                     const mimeType = attachment.type || "image/png";
-                    parts.push({
+                    currentParts.push({
                         inline_data: {
                             mime_type: mimeType,
                             data: base64Data
@@ -49,7 +62,11 @@ export async function POST(request) {
             }
         }
 
-        // 调用 Gemini API
+        if (currentParts.length > 0) {
+            contents.push({ role: "user", parts: currentParts });
+        }
+
+        // 调用 Gemini API（多轮对话）
         const response = await fetch(`${BASE_URL}/models/${MODEL}:generateContent`, {
             method: "POST",
             headers: {
@@ -58,10 +75,10 @@ export async function POST(request) {
             },
             body: JSON.stringify({
                 system_instruction: { parts: [{ text: systemPrompt }] },
-                contents: [{ parts }],
+                contents,
                 generationConfig: {
                     temperature: 0.7,
-                    maxOutputTokens: 2048
+                    maxOutputTokens: 8192
                 }
             })
         });

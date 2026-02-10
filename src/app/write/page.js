@@ -234,6 +234,10 @@ export default function WritePage() {
                 body: JSON.stringify({
                     sessionId,
                     message: messageText,
+                    // 传递完整对话历史（排除正在流式传输的占位消息和错误消息）
+                    history: messages
+                        .filter(m => !m.isStreaming && !m.isError && m.content)
+                        .map(m => ({ role: m.role, content: m.content })),
                     attachments: currentAttachments,
                     outline,
                     roleId: currentRole?.id || "ecd",
