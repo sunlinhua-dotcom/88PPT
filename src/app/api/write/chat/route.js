@@ -28,9 +28,10 @@ export async function POST(request) {
         // 构建多轮对话历史（Gemini contents 格式）
         const contents = [];
 
-        // 1. 添加历史对话（如果有）
+        // 1. 添加历史对话（滑动窗口：只保留最近 40 条消息，避免请求过大）
         if (history && history.length > 0) {
-            for (const msg of history) {
+            const recentHistory = history.slice(-40);
+            for (const msg of recentHistory) {
                 // Gemini API 使用 "user" 和 "model" 角色
                 const role = msg.role === "assistant" ? "model" : "user";
                 contents.push({
@@ -78,7 +79,7 @@ export async function POST(request) {
                 contents,
                 generationConfig: {
                     temperature: 0.7,
-                    maxOutputTokens: 8192
+                    maxOutputTokens: 65536
                 }
             })
         });
